@@ -1,6 +1,6 @@
 
 // キャッシュ名は更新のたびに変える（vを上げるだけでOK）
-const CACHE_NAME = 'pokemon-calc-v1';
+const CACHE_NAME = 'pokemon-calc-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -56,3 +56,4 @@ self.addEventListener('fetch', (e) => {
     }))
   );
 });
+
