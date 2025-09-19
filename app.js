@@ -1,4 +1,4 @@
-/* ===== PWA 基本（そのまま） ===== */
+/* ===== PWA 基本 ===== */
 const swStatus = document.getElementById('swStatus');
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
@@ -30,18 +30,18 @@ installBtn?.addEventListener('click', async () => {
   deferredPrompt?.prompt(); await deferredPrompt?.userChoice; deferredPrompt = null; installBtn.hidden = true;
 });
 
-/* ===== ダメージ計算（最小実装） ===== */
-const LEVEL = 50;
-const RANK_MULT = { "-6":2/8,"-5":2/7,"-4":2/6,"-3":2/5,"-2":2/4,"-1":2/3,"0":1,"1":3/2,"2":2,"3":5/2,"4":3,"5":7/2,"6":4 };
-
+/* ===== 共通ユーティリティ ===== */
 const $ = (id) => document.getElementById(id);
 const num = (el, def=0) => {
   const v = typeof el === 'string' ? $(el).value : el.value;
   const n = Number(v); return Number.isFinite(n) ? n : def;
 };
 const setText = (id, t) => $(id).textContent = t;
-
 function clamp(n, lo, hi){ return Math.max(lo, Math.min(hi, n)); }
+
+/* ====== ダメージ計算（メイン） ====== */
+const LEVEL = 50;
+const RANK_MULT = { "-6":2/8,"-5":2/7,"-4":2/6,"-3":2/5,"-2":2/4,"-1":2/3,"0":1,"1":3/2,"2":2,"3":5/2,"4":3,"5":7/2,"6":4 };
 
 function calcStat(base, iv, ev, nature, isHP){
   if(isHP){
@@ -51,17 +51,18 @@ function calcStat(base, iv, ev, nature, isHP){
     return Math.floor(v * nature);
   }
 }
-
 function damageCore(level, power, atk, df){
   const base = Math.floor(level*2/5) + 2;
   const core = Math.floor( (base * power * atk) / Math.max(1, df) );
   return Math.floor(core/50) + 2;
 }
+
+// 天候×技タイプの補正（炎/水のみ公式挙動。その他は1.0）
 function weatherMoveMultiplier(weather, moveType){
-  if(weather === '晴れ' && moveType === '炎') return 1.5;
-  if(weather === '晴れ' && moveType === '水') return 0.5;
-  if(weather === '雨' && moveType === '水') return 1.5;
-  if(weather === '雨' && moveType === '炎') return 0.5;
+  if(weather === '晴れ' && moveType === 'ほのお') return 1.5;
+  if(weather === '晴れ' && moveType === 'みず')   return 0.5;
+  if(weather === '雨'   && moveType === 'みず')   return 1.5;
+  if(weather === '雨'   && moveType === 'ほのお') return 0.5;
   return 1.0;
 }
 function choiceItemMultiplier(item, category){
@@ -70,22 +71,14 @@ function choiceItemMultiplier(item, category){
   return 1.0;
 }
 function lifeOrbMultiplier(item){ return item === 'いのちのたま' ? 1.3 : 1.0; }
-
-function currentAtkStat(category){
-  return category === '物理' ? num('atkA', 1) : num('atkS', 1);
-}
-function currentDefStat(category){
-  return category === '物理' ? num('defB', 1) : num('defD', 1);
-}
-
-function sandSpDefBoostOn(category){
-  return $('weather').value === '砂嵐' && $('sandRock').value === '1' && category === '特殊';
-}
+function currentAtkStat(category){ return category === '物理' ? num('atkA', 1) : num('atkS', 1); }
+function currentDefStat(category){ return category === '物理' ? num('defB', 1) : num('defD', 1); }
+function sandSpDefBoostOn(category){ return $('weather').value === '砂嵐' && $('sandRock').value === '1' && category === '特殊'; }
 
 function calcRange(){
-  // 入力
   const category = $('category').value;
   const power = num('power', 1);
+  const moveType = $('moveType').value;              // ★ 技タイプ
   const stab = Number($('stab').value);
   const typeMul = Number($('typeMul').value);
   const weather = $('weather').value;
@@ -93,22 +86,21 @@ function calcRange(){
   const atkStage = Number($('atkStage').value);
   const defStage = Number($('defStage').value);
   const item = $('item').value;
+  const otherMul = num('otherMul', 1.0);            // ★ その他補正
 
   let atk = currentAtkStat(category);
   let df  = currentDefStat(category);
   if(sandSpDefBoostOn(category)) df = Math.floor(df * 1.5);
 
-  // ランク
   const rAtk = RANK_MULT[atkStage];
   const rDef = RANK_MULT[defStage];
 
-  // その他補正
   const burn = (status === 'やけど' && category === '物理') ? 0.5 : 1.0;
   const itemMul = choiceItemMultiplier(item, category) * lifeOrbMultiplier(item);
-  const wMul = weatherMoveMultiplier(weather, (/*技タイプは簡略*/ typeMul>=1 ? '水' : '炎')); // ※必要なら技タイプ入力に差し替え可
+  const wMul = weatherMoveMultiplier(weather, moveType); // ★ 技タイプに基づく天候補正
 
   const core = damageCore(LEVEL, power, Math.floor(atk*rAtk), Math.floor(df*rDef));
-  const base = core * stab * typeMul * burn * itemMul * wMul;
+  const base = core * stab * typeMul * burn * itemMul * wMul * otherMul; // ★ その他補正を掛ける
 
   const min = Math.floor(base * 0.85);
   const max = Math.floor(base * 1.00);
@@ -122,7 +114,6 @@ function previewDamage(){
   const totalMin = min * hits;
   const totalMax = max * hits;
 
-  // HPは減らさずプレビュー
   const remainMin = clamp(hpMax - totalMax, 0, hpMax);
   const remainMax = clamp(hpMax - totalMin, 0, hpMax);
 
@@ -150,7 +141,6 @@ function resetHP(){
   syncHPBar();
   $('log').value = '';
 }
-
 function doAttack(){
   const {min, max} = calcRange();
   const roll = Math.floor(Math.random() * (max - min + 1)) + min;
@@ -158,12 +148,10 @@ function doAttack(){
   const before = defCurHP;
   defCurHP = clamp(defCurHP - roll, 0, num('defHP', 0));
   syncHPBar();
-
-  const line = `攻撃: ${roll} ダメージ → ${before} → ${defCurHP}`;
-  $('log').value += line + '\n';
+  $('log').value += `攻撃: ${roll} ダメージ → ${before} → ${defCurHP}\n`;
 }
 
-/* 実数値計：攻撃側 */
+/* ====== 実数値計（計算タブ） ====== */
 function runAtkCalc(){
   const target = $('atkCalcTarget').value; // 攻撃 or 特攻
   const base = num('atkBase', 50);
@@ -174,11 +162,8 @@ function runAtkCalc(){
   $('atkCalcOut').textContent = `${target}: ${val}`;
   if(target === '攻撃'){ $('atkA').value = val; } else { $('atkS').value = val; }
 }
-function copyFromAtkCalc(which){
-  // which: 'A' or 'S' → 何もしない（実数値計で直接反映済）
-}
+function copyFromAtkCalc(){}
 
-/* 実数値計：防御側 */
 function runDefCalc(){
   const target = $('defCalcTarget').value; // HP/防御/特防
   const base = num('defBase', 50);
@@ -192,20 +177,192 @@ function runDefCalc(){
   else if(target === '防御'){ $('defB').value = val; }
   else { $('defD').value = val; }
 }
-function copyFromDefCalc(){
-  // 実数値計で直接反映済
+function copyFromDefCalc(){}
+
+/* ====== 図鑑検索・アダプタ（pokemon_master.json を変換） ====== */
+let DEX = [];        // {no, name, types:[t1,t2], base:{HP,攻撃,防御,特攻,特防,素早}}
+let NAME_INDEX = []; // {no, name, norm}
+
+function toNumber(v){
+  if (v == null) return null;
+  const s = String(v).replace(/[^\d]/g,'');
+  return s ? Number(s) : null;
+}
+function normalizeJP(s){
+  return String(s || '')
+    .normalize('NFKC')
+    .replace(/\s+/g,'')
+    .replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60))
+    .toLowerCase();
+}
+async function loadDexFromMaster() {
+  const res = await fetch('./pokemon_master.json');
+  const src = await res.json();
+  DEX = src.map(p => ({
+    no: toNumber(p.No),
+    name: String(p.名前).trim(),
+    types: [p.タイプ1 || null, p.タイプ2 || null],
+    base: { HP:p.HP, 攻撃:p.攻撃, 防御:p.防御, 特攻:p.特攻, 特防:p.特防, 素早:p.素早 }
+  }));
+  NAME_INDEX = DEX.map(d => ({ no:d.no, name:d.name, norm: normalizeJP(d.name) }));
+
+  // datalist へ全名を流し込み
+  const dl = $('pkmnlist'); dl.innerHTML = '';
+  DEX.forEach(d => { const o=document.createElement('option'); o.value=d.name; dl.appendChild(o); });
+}
+function findCandidates(q, limit=10){
+  const n = normalizeJP(q);
+  if (!n) return [];
+  const isNum = /^\d+$/.test(q.trim());
+  return NAME_INDEX
+    .filter(r => isNum ? String(r.no).includes(q.trim()) : r.norm.includes(n))
+    .slice(0, limit)
+    .map(r => ({ no:r.no, name:r.name }));
+}
+function pickDexByName(name){ return DEX.find(x => x.name === name) || null; }
+
+/* 図鑑UI */
+const dexSg = $('dexSuggest');
+$('dexSearch').addEventListener('input', (e) => {
+  const q = e.target.value.trim();
+  const list = findCandidates(q, 10);
+  if (!q || list.length===0){ dexSg.classList.add('hidden'); dexSg.innerHTML=''; return; }
+  dexSg.classList.remove('hidden');
+  dexSg.innerHTML = list.map(x => `<li data-no="${x.no}">${x.name}</li>`).join('');
+});
+dexSg.addEventListener('click', (e) => {
+  const li = e.target.closest('li'); if(!li) return;
+  const name = li.textContent;
+  $('dexSearch').value = name; dexSg.classList.add('hidden');
+  showDexInfo(name);
+});
+function showDexInfo(name){
+  const d = pickDexByName(name);
+  if(!d){ $('dexInfo').textContent = '未選択'; return; }
+  $('dexInfo').innerHTML = `
+    <div><strong>${d.name}</strong>　タイプ：${d.types.filter(Boolean).join(' / ') || '—'}</div>
+    <table>
+      <tr><th>HP</th><td>${d.base.HP}</td><th>攻撃</th><td>${d.base.攻撃}</td><th>防御</th><td>${d.base.防御}</td></tr>
+      <tr><th>特攻</th><td>${d.base.特攻}</td><th>特防</th><td>${d.base.特防}</td><th>素早</th><td>${d.base.素早}</td></tr>
+    </table>
+  `;
+  $('dexBase').value = d.base[$('dexTarget').value] ?? 100;
+}
+function runDexCalc(){
+  const isHP = $('dexTarget').value === 'HP';
+  const val = calcStat(num('dexBase',100), num('dexIV',31), num('dexEV',0), isHP?1.0:Number($('dexNature').value), isHP);
+  $('dexOut').textContent = `${$('dexTarget').value}: ${val}`;
+}
+function applyToCalc(side){
+  const m = $('dexOut').textContent.match(/^(HP|攻撃|防御|特攻|特防|素早):\s*(\d+)/);
+  if(!m){ alert('先に実数値を計算してください'); return; }
+  const stat = m[1], v = Number(m[2]);
+  if(side==='atk'){
+    if(stat==='攻撃') $('atkA').value = v;
+    if(stat==='特攻') $('atkS').value = v;
+  }else{
+    if(stat==='HP'){ $('defHP').value = v; resetHP(); }
+    if(stat==='防御') $('defB').value = v;
+    if(stat==='特防') $('defD').value = v;
+  }
+  alert(`「${stat} = ${v}」を${side==='atk'?'攻撃側':'防御側'}に反映しました`);
 }
 
-/* 初期化 */
+/* ====== パーティ（6体） 保存/読込 ====== */
+const PARTY_KEY = 'pokemon_parties_v1';
+const SINGLE_KEY = 'pokemon_singles_v1';
+
+function partyEmpty(){ return { name:'', item:'', moves:['','','',''], memo:'' }; }
+function getPartyUI(i){
+  return { name:$(`p${i}Name`), item:$(`p${i}Item`),
+    m1:$(`p${i}M1`), m2:$(`p${i}M2`), m3:$(`p${i}M3`), m4:$(`p${i}M4`),
+    memo:$(`p${i}Memo`), singleName:$(`p${i}SaveName`), singleList:$(`p${i}SingleList`) };
+}
+function readPartyFromUI(){
+  const arr=[]; for(let i=1;i<=6;i++){ const u=getPartyUI(i);
+    arr.push({ name:u.name.value.trim(), item:u.item.value.trim(),
+      moves:[u.m1.value.trim(),u.m2.value.trim(),u.m3.value.trim(),u.m4.value.trim()],
+      memo:u.memo.value.trim() }); }
+  return arr;
+}
+function writePartyToUI(arr){
+  for(let i=1;i<=6;i++){ const u=getPartyUI(i), d=arr[i-1]||partyEmpty();
+    u.name.value=d.name||''; u.item.value=d.item||'';
+    u.m1.value=d.moves?.[0]||''; u.m2.value=d.moves?.[1]||''; u.m3.value=d.moves?.[2]||''; u.m4.value=d.moves?.[3]||'';
+    u.memo.value=d.memo||''; }
+}
+function loadPartiesStore(){ try{return JSON.parse(localStorage.getItem(PARTY_KEY)||'{}');}catch{return{}} }
+function savePartiesStore(obj){ localStorage.setItem(PARTY_KEY, JSON.stringify(obj)); refreshPartyList(); }
+function refreshPartyList(){ const sel=$('partyList'), store=loadPartiesStore(), keys=Object.keys(store).sort(); sel.innerHTML=keys.map(k=>`<option value="${k}">${k}</option>`).join(''); }
+function saveParty(){ const name=$('partySaveName').value.trim()||`party_${new Date().toISOString().slice(0,16).replace('T',' ')}`; const st=loadPartiesStore(); st[name]=readPartyFromUI(); savePartiesStore(st); alert(`保存しました：${name}`); }
+function loadParty(){ const k=$('partyList').value; if(!k) return; const st=loadPartiesStore(); if(!st[k]) return; writePartyToUI(st[k]); }
+function deleteParty(){ const k=$('partyList').value; if(!k) return; const st=loadPartiesStore(); delete st[k]; savePartiesStore(st); }
+
+/* 個別保存（1体） */
+function loadSinglesStore(){ try{return JSON.parse(localStorage.getItem(SINGLE_KEY)||'{}');}catch{return{}} }
+function saveSinglesStore(obj){ localStorage.setItem(SINGLE_KEY, JSON.stringify(obj)); }
+function saveSingle(i){
+  const u=getPartyUI(i), key=(u.singleName.value.trim()||`mon${i}_${Date.now()}`), st=loadSinglesStore();
+  st[key]={ name:u.name.value.trim(), item:u.item.value.trim(), moves:[u.m1.value.trim(),u.m2.value.trim(),u.m3.value.trim(),u.m4.value.trim()], memo:u.memo.value.trim() };
+  saveSinglesStore(st); alert(`1体保存：${key}`); refreshSinglesListAll();
+}
+function applySingle(i){
+  const u=getPartyUI(i), key=u.singleList.value; if(!key) return; const d=loadSinglesStore()[key]; if(!d) return;
+  u.name.value=d.name||''; u.item.value=d.item||''; [u.m1.value,u.m2.value,u.m3.value,u.m4.value]=d.moves||['','','','']; u.memo.value=d.memo||'';
+}
+function refreshSinglesListAll(){ const st=loadSinglesStore(), keys=Object.keys(st).sort(); for(let i=1;i<=6;i++){ const u=getPartyUI(i); u.singleList.innerHTML=keys.map(k=>`<option value="${k}">${k}</option>`).join(''); } }
+
+/* パーティUI生成 */
+function buildPartyUI(){
+  const grid=$('partyGrid'); grid.innerHTML='';
+  let html=''; for(let i=1;i<=6;i++){ html+=`
+  <div class="card">
+    <div class="slot-h"><strong>${i}体目</strong> <small>（名前にサジェストあり）</small></div>
+    <div class="row"><label>名前</label><input id="p${i}Name" list="pkmnlist" placeholder="例：サーフゴー" /></div>
+    <div class="row"><label>アイテム</label><input id="p${i}Item" placeholder="こだわりスカーフ 等"/></div>
+    <div class="row"><label>技1</label><input id="p${i}M1" /></div>
+    <div class="row"><label>技2</label><input id="p${i}M2" /></div>
+    <div class="row"><label>技3</label><input id="p${i}M3" /></div>
+    <div class="row"><label>技4</label><input id="p${i}M4" /></div>
+    <div class="row"><label>メモ</label><input id="p${i}Memo" /></div>
+    <div class="tight" style="margin-top:8px">
+      <input id="p${i}SaveName" placeholder="この1体の保存名" />
+      <button class="btn btn-ghost" onclick="saveSingle(${i})">1体保存</button>
+      <select id="p${i}SingleList"></select>
+      <button class="btn btn-ghost" onclick="applySingle(${i})">呼び出し</button>
+    </div>
+  </div>`; }
+  grid.innerHTML=html; refreshSinglesListAll();
+}
+
+/* ====== タブ切替 ====== */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const key=btn.dataset.tab;
+    $('tab-calc').classList.toggle('hidden', key!=='calc');
+    $('tab-dex').classList.toggle('hidden', key!=='dex');
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+});
+
+/* ====== 初期化 ====== */
 (function init(){
   // ランク & 連続回数
-  const atkStage = $('atkStage'), defStage = $('defStage'), hits=$('hits');
+  const atkStage=$('atkStage'), defStage=$('defStage'), hits=$('hits');
   for(let i=-6;i<=6;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(i===0)o.selected=true; atkStage.appendChild(o.cloneNode(true)); defStage.appendChild(o); }
   for(let i=1;i<=10;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(i===1)o.selected=true; hits.appendChild(o); }
 
   // HPバー
   defCurHP = num('defHP', 0); syncHPBar();
-
-  // 入力変更で即HP再計算（HP欄だけ）
   $('defHP').addEventListener('input', resetHP);
+
+  // パーティUI
+  buildPartyUI(); refreshPartyList();
+
+  // 図鑑読み込み
+  loadDexFromMaster().then(()=>{
+    $('dexSearch').addEventListener('change', ()=> showDexInfo($('dexSearch').value));
+  });
 })();
