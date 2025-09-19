@@ -3,47 +3,226 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ポケモン計算 PWA（ひな形）</title>
+  <title>ポケモン計算 PWA</title>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0b74de" />
   <style>
-    body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans JP',sans-serif;margin:0;background:#f6f7fb;color:#222}
-    header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#0b74de;color:#fff;position:sticky;top:0}
-    main{padding:16px;max-width:900px;margin:0 auto}
-    .card{background:#fff;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:16px;margin:12px 0}
-    button{border:0;border-radius:10px;padding:10px 14px;background:#0b74de;color:#fff;font-weight:600;cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    .muted{color:#666;font-size:.95em}
-    .ok{color:#11803d;font-weight:700}
+    :root{--brand:#0b74de;--bg:#f6f7fb;--card:#fff;--muted:#666}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans JP',sans-serif;margin:0;background:var(--bg);color:#222}
+    header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--brand);color:#fff;position:sticky;top:0;z-index:1}
+    main{padding:16px;max-width:1000px;margin:0 auto}
+    .grid{display:grid;gap:12px}
+    @media(min-width:900px){.grid-2{grid-template-columns:1fr 1fr}}
+    .card{background:var(--card);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:16px}
+    h2,h3{margin:.2em 0 .6em}
+    label{font-size:.95em}
+    input[type="number"],select{width:100%;padding:8px;border:1px solid #ddd;border-radius:10px}
+    .row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center;margin:8px 0}
+    .row3{display:grid;grid-template-columns:120px 1fr 1fr;gap:10px;align-items:center;margin:8px 0}
+    .btn{border:0;border-radius:10px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn-ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+    .muted{color:var(--muted);font-size:.95em}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef4ff;color:#2a58b5;font-weight:600}
+    .hpbar{height:14px;background:#e5e7eb;border-radius:10px;overflow:hidden}
+    .hpbar>div{height:100%;background:#22c55e;width:0%}
+    textarea{width:100%;height:140px;padding:10px;border:1px solid #ddd;border-radius:8px}
+    details{background:#f9fafb;border:1px solid #eee;border-radius:10px;padding:10px}
+    details>summary{cursor:pointer;font-weight:600;margin:4px 0}
+    .tight{display:flex;gap:8px;flex-wrap:wrap}
   </style>
 </head>
 <body>
   <header>
-    <div>ポケモン計算 PWA（ひな形）</div>
-    <div>
-      <button id="installBtn" hidden>ホーム画面に追加</button>
+    <div>ポケモン計算 PWA</div>
+    <div class="tight">
+      <span id="swStatus" class="pill">SW 準備中</span>
+      <button id="installBtn" class="btn btn-ghost" hidden>ホーム画面に追加</button>
     </div>
   </header>
+
   <main>
-    <div class="card">
-      <h2>これは“箱”です</h2>
-      <p class="muted">このページは PWA（オフライン対応アプリ）ひな形です。<br>
-      あとで、あなたの「ダメージ計算のHTML/JS」をこのファイルに差し替えればそのままPWA化できます。</p>
-      <ul>
-        <li>スマホで <strong>ホーム画面に追加</strong> → アプリ風に起動</li>
-        <li>一度開けば <strong>オフラインでもOK</strong></li>
-        <li>更新はファイル差し替え（URLはそのまま）</li>
-      </ul>
-      <p id="swStatus" class="ok">Service Worker: 登録中…</p>
+    <div class="grid grid-2">
+      <!-- 攻撃側 -->
+      <div class="card">
+        <h2>攻撃側</h2>
+        <div class="row3">
+          <label>実数値（攻撃）</label>
+          <input id="atkA" type="number" min="1" value="200" />
+          <button class="btn btn-ghost" onclick="copyFromAtkCalc('A')">← 実数値計</button>
+        </div>
+        <div class="row3">
+          <label>実数値（特攻）</label>
+          <input id="atkS" type="number" min="1" value="200" />
+          <button class="btn btn-ghost" onclick="copyFromAtkCalc('S')">← 実数値計</button>
+        </div>
+
+        <details>
+          <summary>実数値計（攻撃/特攻）</summary>
+          <div class="row3"><label>対象</label>
+            <select id="atkCalcTarget">
+              <option value="攻撃">攻撃</option>
+              <option value="特攻">特攻</option>
+            </select>
+            <span class="muted">レベル50固定</span>
+          </div>
+          <div class="row3"><label>種族値</label><input id="atkBase" type="number" min="1" max="255" value="130" /><span></span></div>
+          <div class="row3"><label>個体値</label><input id="atkIV" type="number" min="0" max="31" value="31" /><span></span></div>
+          <div class="row3"><label>努力値</label><input id="atkEV" type="number" min="0" max="252" value="252" /><span></span></div>
+          <div class="row3"><label>補正</label>
+            <select id="atkNature">
+              <option value="1.1">1.1倍</option>
+              <option value="1.0" selected>1.0倍</option>
+              <option value="0.9">0.9倍</option>
+            </select>
+            <button class="btn" onclick="runAtkCalc()">計算して反映</button>
+          </div>
+          <div class="row"><label>結果</label><div id="atkCalcOut" class="pill">—</div></div>
+        </details>
+      </div>
+
+      <!-- 防御側 -->
+      <div class="card">
+        <h2>防御側</h2>
+        <div class="row3">
+          <label>実数値（HP）</label>
+          <input id="defHP" type="number" min="1" value="155" />
+          <button class="btn btn-ghost" onclick="copyFromDefCalc('HP')">← 実数値計</button>
+        </div>
+        <div class="row3">
+          <label>実数値（防御）</label>
+          <input id="defB" type="number" min="1" value="120" />
+          <button class="btn btn-ghost" onclick="copyFromDefCalc('B')">← 実数値計</button>
+        </div>
+        <div class="row3">
+          <label>実数値（特防）</label>
+          <input id="defD" type="number" min="1" value="120" />
+          <button class="btn btn-ghost" onclick="copyFromDefCalc('D')">← 実数値計</button>
+        </div>
+
+        <details>
+          <summary>実数値計（HP/防御/特防）</summary>
+          <div class="row3"><label>対象</label>
+            <select id="defCalcTarget">
+              <option value="HP">HP</option>
+              <option value="防御">防御</option>
+              <option value="特防">特防</option>
+            </select>
+            <span class="muted">レベル50固定</span>
+          </div>
+          <div class="row3"><label>種族値</label><input id="defBase" type="number" min="1" max="255" value="100" /><span></span></div>
+          <div class="row3"><label>個体値</label><input id="defIV" type="number" min="0" max="31" value="31" /><span></span></div>
+          <div class="row3"><label>努力値</label><input id="defEV" type="number" min="0" max="252" value="0" /><span></span></div>
+          <div class="row3"><label>補正（HP以外）</label>
+            <select id="defNature">
+              <option value="1.1">1.1倍</option>
+              <option value="1.0" selected>1.0倍</option>
+              <option value="0.9">0.9倍</option>
+            </select>
+            <button class="btn" onclick="runDefCalc()">計算して反映</button>
+          </div>
+          <div class="row"><label>結果</label><div id="defCalcOut" class="pill">—</div></div>
+        </details>
+      </div>
     </div>
 
+    <!-- 設定 -->
     <div class="card">
-      <h3>次の差し替えポイント</h3>
-      <ol>
-        <li>この <code>index.html</code> の中身に、今の計算UIを貼る</li>
-        <li>必要なら <code>app.js</code> にJSロジックを分離</li>
-        <li>画像は今のままPokeAPIから取得→ブラウザキャッシュでOK</li>
-      </ol>
+      <h2>ダメージ設定</h2>
+      <div class="grid grid-2">
+        <div>
+          <div class="row"><label>技区分</label>
+            <select id="category">
+              <option>物理</option>
+              <option>特殊</option>
+            </select>
+          </div>
+          <div class="row"><label>威力</label><input id="power" type="number" min="1" value="50" /></div>
+          <div class="row"><label>STAB</label>
+            <select id="stab">
+              <option value="1.0">1.0</option>
+              <option value="1.5" selected>1.5</option>
+              <option value="2.0">2.0</option>
+            </select>
+          </div>
+          <div class="row"><label>タイプ相性</label>
+            <select id="typeMul">
+              <option value="0.25">0.25</option>
+              <option value="0.5">0.5</option>
+              <option value="1.0" selected>1.0</option>
+              <option value="2.0">2.0</option>
+              <option value="4.0">4.0</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <div class="row"><label>天候</label>
+            <select id="weather">
+              <option>なし</option>
+              <option>晴れ</option>
+              <option>雨</option>
+              <option>砂嵐</option>
+            </select>
+          </div>
+          <div class="row"><label>アイテム</label>
+            <select id="item">
+              <option>なし</option>
+              <option>こだわりハチマキ</option>
+              <option>こだわりメガネ</option>
+              <option>いのちのたま</option>
+            </select>
+          </div>
+          <div class="row"><label>状態</label>
+            <select id="status">
+              <option>通常</option>
+              <option>やけど</option>
+            </select>
+          </div>
+          <div class="row"><label>攻撃ランク</label>
+            <select id="atkStage"></select>
+          </div>
+          <div class="row"><label>防御ランク</label>
+            <select id="defStage"></select>
+          </div>
+          <div class="row"><label>連続回数</label>
+            <select id="hits"></select>
+          </div>
+          <div class="row"><label>砂嵐・岩タイプ特防1.5</label>
+            <select id="sandRock">
+              <option value="0">オフ</option>
+              <option value="1">オン</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="tight" style="margin-top:10px">
+        <button class="btn" onclick="previewDamage()">計算する（HPは減らさない）</button>
+        <button class="btn btn-ghost" onclick="doAttack()">攻撃する（乱数適用）</button>
+        <button class="btn btn-ghost" onclick="resetHP()">HP/ログ リセット</button>
+      </div>
+    </div>
+
+    <!-- HP & 結果 -->
+    <div class="card">
+      <h3>防御側 HP</h3>
+      <div class="row">
+        <label>現在 / 最大</label>
+        <div id="hpText">0 / 0 (0%)</div>
+      </div>
+      <div class="hpbar"><div id="hpFill"></div></div>
+
+      <div style="margin-top:12px">
+        <div id="resultLine" class="muted">結果がここに出ます</div>
+        <ul id="resultList"></ul>
+      </div>
+    </div>
+
+    <!-- ログ -->
+    <div class="card">
+      <h3>ログ</h3>
+      <textarea id="log" readonly></textarea>
     </div>
   </main>
 
