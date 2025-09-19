@@ -63,7 +63,6 @@
   </header>
 
   <main>
-    <!-- タブ切替 -->
     <div class="tabs">
       <button class="tab active" data-tab="calc" type="button">計算</button>
       <button class="tab" data-tab="dex" type="button">図鑑 / パーティ</button>
@@ -202,7 +201,7 @@
                 <option>晴れ</option>
                 <option>雨</option>
                 <option>砂嵐</option>
-                <option>雪</option> <!-- ★ 追加 -->
+                <option>雪</option>
               </select>
             </div>
             <div class="row"><label>アイテム</label>
@@ -228,21 +227,18 @@
             <div class="row"><label>連続回数</label>
               <select id="hits"></select>
             </div>
-
             <div class="row"><label>砂嵐・岩特防1.5</label>
               <select id="sandRock">
                 <option value="0">オフ</option>
                 <option value="1">オン</option>
               </select>
             </div>
-
-            <div class="row"><label>雪・氷防御1.5</label>  <!-- ★ 新規 -->
+            <div class="row"><label>雪・氷防御1.5</label>
               <select id="snowIce">
                 <option value="0">オフ</option>
                 <option value="1">オン</option>
               </select>
             </div>
-
             <div class="row"><label>その他補正</label>
               <input id="otherMul" type="number" step="0.05" min="0" value="1.0" />
             </div>
@@ -290,7 +286,7 @@
           </div>
         </div>
         <datalist id="pkmnlist"></datalist>
-
+        <img id="dexImg" alt="" style="margin-top:6px;max-height:120px;display:none">
         <div id="dexInfo" class="muted" style="margin-top:8px">未選択</div>
 
         <details style="margin-top:10px">
