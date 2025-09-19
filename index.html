@@ -45,6 +45,12 @@
     @media(min-width:980px){.party-grid{grid-template-columns:1fr 1fr}}
     .slot-h{display:flex;gap:8px;align-items:center;margin-bottom:8px}
     .slot-h small{color:var(--muted)}
+
+    /* Timer */
+    .timer-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+    .timer-display{font-size:48px;font-weight:800;letter-spacing:1px}
+    .timer-ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}
+    .timer-ctrl .row{grid-template-columns:80px 120px}
   </style>
 </head>
 <body>
@@ -59,8 +65,9 @@
   <main>
     <!-- タブ切替 -->
     <div class="tabs">
-      <button class="tab active" data-tab="calc">計算</button>
-      <button class="tab" data-tab="dex">図鑑 / パーティ</button>
+      <button class="tab active" data-tab="calc" type="button">計算</button>
+      <button class="tab" data-tab="dex" type="button">図鑑 / パーティ</button>
+      <button class="tab" data-tab="timer" type="button">タイマー</button>
     </div>
 
     <!-- ============ 計算タブ ============ -->
@@ -195,6 +202,7 @@
                 <option>晴れ</option>
                 <option>雨</option>
                 <option>砂嵐</option>
+                <option>雪</option> <!-- ★ 追加 -->
               </select>
             </div>
             <div class="row"><label>アイテム</label>
@@ -220,8 +228,16 @@
             <div class="row"><label>連続回数</label>
               <select id="hits"></select>
             </div>
+
             <div class="row"><label>砂嵐・岩特防1.5</label>
               <select id="sandRock">
+                <option value="0">オフ</option>
+                <option value="1">オン</option>
+              </select>
+            </div>
+
+            <div class="row"><label>雪・氷防御1.5</label>  <!-- ★ 新規 -->
+              <select id="snowIce">
                 <option value="0">オフ</option>
                 <option value="1">オン</option>
               </select>
@@ -316,6 +332,23 @@
           <select id="partyList"></select>
           <button class="btn btn-ghost" onclick="loadParty()">読み込み</button>
           <button class="btn btn-ghost" onclick="deleteParty()">削除</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ タイマー タブ ============ -->
+    <section id="tab-timer" class="hidden">
+      <div class="card">
+        <h2>タイマー</h2>
+        <div class="timer-wrap">
+          <div id="timerDisplay" class="timer-display">10:00</div>
+          <div class="timer-ctrl">
+            <div class="row"><label>分</label><input id="timerMin" type="number" min="0" value="10"></div>
+            <div class="row"><label>秒</label><input id="timerSec" type="number" min="0" max="59" value="0"></div>
+            <button class="btn" id="timerStartBtn" type="button" onclick="toggleTimer()">開始</button>
+            <button class="btn btn-ghost" id="timerResetBtn" type="button" onclick="resetTimer()">リセット</button>
+          </div>
+          <div class="muted">タブを切り替えても動作します。</div>
         </div>
       </div>
     </section>
