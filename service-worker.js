@@ -1,12 +1,11 @@
-
-// キャッシュ名は更新のたびに変える（vを上げるだけでOK）
-const CACHE_NAME = 'pokemon-calc-v2';
+// キャッシュ名：更新時は v 数字を上げる
+const CACHE_NAME = 'pokemon-calc-v3';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
-  './manifest.json'
-  // ここに将来の CSS/画像/プリセットJSON などを足す
+  './manifest.json',
+  './pokemon_master.json' // ← 図鑑データをキャッシュ
 ];
 
 // インストール：アプリシェルをキャッシュ
@@ -17,7 +16,7 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-// アクティベート：古いキャッシュを掃除
+// アクティベート：古いキャッシュ掃除
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -27,15 +26,12 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// フェッチ：HTMLはネット優先→失敗時キャッシュ、静的はキャッシュ優先
+// フェッチ：HTMLはネット優先→失敗時キャッシュ、その他はキャッシュ優先
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
-
-  // 同一オリジンのみ（外部APIはそのままネットに流す）
   if (url.origin !== self.location.origin) return;
 
-  // HTMLは network-first
   if (req.mode === 'navigate') {
     e.respondWith(
       fetch(req).then(res => {
@@ -47,7 +43,6 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // それ以外は cache-first
   e.respondWith(
     caches.match(req).then(matched => matched || fetch(req).then(res => {
       const copy = res.clone();
@@ -56,4 +51,3 @@ self.addEventListener('fetch', (e) => {
     }))
   );
 });
-
