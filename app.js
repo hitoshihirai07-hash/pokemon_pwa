@@ -57,7 +57,7 @@ function damageCore(level, power, atk, df){
   return Math.floor(core/50) + 2;
 }
 
-// 天候×技タイプの補正（炎/水のみ公式挙動。その他は1.0）
+// 天候×技タイプの補正（炎/水のみ）
 function weatherMoveMultiplier(weather, moveType){
   if(weather === '晴れ' && moveType === 'ほのお') return 1.5;
   if(weather === '晴れ' && moveType === 'みず')   return 0.5;
@@ -73,12 +73,20 @@ function choiceItemMultiplier(item, category){
 function lifeOrbMultiplier(item){ return item === 'いのちのたま' ? 1.3 : 1.0; }
 function currentAtkStat(category){ return category === '物理' ? num('atkA', 1) : num('atkS', 1); }
 function currentDefStat(category){ return category === '物理' ? num('defB', 1) : num('defD', 1); }
-function sandSpDefBoostOn(category){ return $('weather').value === '砂嵐' && $('sandRock').value === '1' && category === '特殊'; }
+
+// 砂嵐中、特殊で岩タイプの特防1.5（手動トグル）
+function sandSpDefBoostOn(category){
+  return $('weather').value === '砂嵐' && $('sandRock').value === '1' && category === '特殊';
+}
+// ★ 雪中、物理で氷タイプの防御1.5（手動トグル）
+function snowDefBoostOn(category){
+  return $('weather').value === '雪' && $('snowIce').value === '1' && category === '物理';
+}
 
 function calcRange(){
   const category = $('category').value;
   const power = num('power', 1);
-  const moveType = $('moveType').value;              // ★ 技タイプ
+  const moveType = $('moveType').value;
   const stab = Number($('stab').value);
   const typeMul = Number($('typeMul').value);
   const weather = $('weather').value;
@@ -86,21 +94,26 @@ function calcRange(){
   const atkStage = Number($('atkStage').value);
   const defStage = Number($('defStage').value);
   const item = $('item').value;
-  const otherMul = num('otherMul', 1.0);            // ★ その他補正
+  const otherMul = num('otherMul', 1.0);
 
   let atk = currentAtkStat(category);
   let df  = currentDefStat(category);
-  if(sandSpDefBoostOn(category)) df = Math.floor(df * 1.5);
 
+  // 環境補正で防御側ステータスを変化
+  if (sandSpDefBoostOn(category)) df = Math.floor(df * 1.5);
+  if (snowDefBoostOn(category))   df = Math.floor(df * 1.5);
+
+  // ランク補正
   const rAtk = RANK_MULT[atkStage];
   const rDef = RANK_MULT[defStage];
 
+  // その他補正
   const burn = (status === 'やけど' && category === '物理') ? 0.5 : 1.0;
   const itemMul = choiceItemMultiplier(item, category) * lifeOrbMultiplier(item);
-  const wMul = weatherMoveMultiplier(weather, moveType); // ★ 技タイプに基づく天候補正
+  const wMul = weatherMoveMultiplier(weather, moveType);
 
   const core = damageCore(LEVEL, power, Math.floor(atk*rAtk), Math.floor(df*rDef));
-  const base = core * stab * typeMul * burn * itemMul * wMul * otherMul; // ★ その他補正を掛ける
+  const base = core * stab * typeMul * burn * itemMul * wMul * otherMul;
 
   const min = Math.floor(base * 0.85);
   const max = Math.floor(base * 1.00);
@@ -312,40 +325,77 @@ function applySingle(i){
 }
 function refreshSinglesListAll(){ const st=loadSinglesStore(), keys=Object.keys(st).sort(); for(let i=1;i<=6;i++){ const u=getPartyUI(i); u.singleList.innerHTML=keys.map(k=>`<option value="${k}">${k}</option>`).join(''); } }
 
-/* パーティUI生成 */
-function buildPartyUI(){
-  const grid=$('partyGrid'); grid.innerHTML='';
-  let html=''; for(let i=1;i<=6;i++){ html+=`
-  <div class="card">
-    <div class="slot-h"><strong>${i}体目</strong> <small>（名前にサジェストあり）</small></div>
-    <div class="row"><label>名前</label><input id="p${i}Name" list="pkmnlist" placeholder="例：サーフゴー" /></div>
-    <div class="row"><label>アイテム</label><input id="p${i}Item" placeholder="こだわりスカーフ 等"/></div>
-    <div class="row"><label>技1</label><input id="p${i}M1" /></div>
-    <div class="row"><label>技2</label><input id="p${i}M2" /></div>
-    <div class="row"><label>技3</label><input id="p${i}M3" /></div>
-    <div class="row"><label>技4</label><input id="p${i}M4" /></div>
-    <div class="row"><label>メモ</label><input id="p${i}Memo" /></div>
-    <div class="tight" style="margin-top:8px">
-      <input id="p${i}SaveName" placeholder="この1体の保存名" />
-      <button class="btn btn-ghost" onclick="saveSingle(${i})">1体保存</button>
-      <select id="p${i}SingleList"></select>
-      <button class="btn btn-ghost" onclick="applySingle(${i})">呼び出し</button>
-    </div>
-  </div>`; }
-  grid.innerHTML=html; refreshSinglesListAll();
-}
-
-/* ====== タブ切替 ====== */
-document.querySelectorAll('.tab').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const key=btn.dataset.tab;
-    $('tab-calc').classList.toggle('hidden', key!=='calc');
-    $('tab-dex').classList.toggle('hidden', key!=='dex');
-    window.scrollTo({top:0, behavior:'smooth'});
+/* ====== タブ切替（堅牢版＋復元） ====== */
+function switchTab(key){
+  document.querySelectorAll('.tab').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab===key);
   });
+  $('tab-calc').classList.toggle('hidden', key!=='calc');
+  $('tab-dex').classList.toggle('hidden', key!=='dex');
+  $('tab-timer').classList.toggle('hidden', key!=='timer');
+  localStorage.setItem('activeTab', key);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab');
+  if(!btn) return;
+  e.preventDefault();
+  switchTab(btn.dataset.tab);
 });
+
+/* ====== タイマー ====== */
+let timerMs = 600000;          // 10分
+let timerRunning = false;
+let timerEndAt = 0;
+let timerId = null;
+
+function fmt(ms){
+  ms = Math.max(0, ms|0);
+  const s = Math.floor(ms/1000);
+  const mm = String(Math.floor(s/60)).padStart(2,'0');
+  const ss = String(s%60).padStart(2,'0');
+  return `${mm}:${ss}`;
+}
+function drawTimer(){
+  const now = Date.now();
+  const remain = timerRunning ? Math.max(0, timerEndAt - now) : timerMs;
+  $('timerDisplay').textContent = fmt(remain);
+  if (timerRunning && remain <= 0){
+    stopTimer(false);
+    // フィードバック（可能なら振動）
+    if (navigator.vibrate) navigator.vibrate([200,100,200]);
+    alert('タイマー終了！');
+  }
+}
+function stopTimer(save=true){
+  if (timerId){ clearInterval(timerId); timerId = null; }
+  timerRunning = false;
+  $('timerStartBtn').textContent = '開始';
+  if (save) localStorage.setItem('timerMs', String(timerMs));
+}
+function startTimer(){
+  if (timerRunning) return;
+  timerRunning = true;
+  timerEndAt = Date.now() + timerMs;
+  $('timerStartBtn').textContent = '一時停止';
+  timerId = setInterval(drawTimer, 200);
+}
+function toggleTimer(){
+  // 入力値反映（停止中のみ）
+  if (!timerRunning){
+    const m = clamp(num('timerMin',10), 0, 999);
+    const s = clamp(num('timerSec',0), 0, 59);
+    timerMs = (m*60 + s) * 1000;
+  }
+  timerRunning ? stopTimer() : startTimer();
+}
+function resetTimer(){
+  stopTimer(false);
+  const m = clamp(num('timerMin',10), 0, 999);
+  const s = clamp(num('timerSec',0), 0, 59);
+  timerMs = (m*60 + s) * 1000;
+  drawTimer();
+}
 
 /* ====== 初期化 ====== */
 (function init(){
@@ -365,4 +415,16 @@ document.querySelectorAll('.tab').forEach(btn=>{
   loadDexFromMaster().then(()=>{
     $('dexSearch').addEventListener('change', ()=> showDexInfo($('dexSearch').value));
   });
+
+  // タブ復元
+  window.addEventListener('DOMContentLoaded', ()=>{
+    switchTab(localStorage.getItem('activeTab') || 'calc');
+  });
+
+  // タイマー復元＆表示
+  const saved = Number(localStorage.getItem('timerMs'));
+  if (Number.isFinite(saved) && saved > 0) timerMs = saved;
+  $('timerMin').value = Math.floor((timerMs/1000)/60);
+  $('timerSec').value = Math.floor((timerMs/1000)%60);
+  drawTimer();
 })();
