@@ -1,4 +1,4 @@
-const CACHE_NAME = 'poke-calc-cache-v1';
+const CACHE_NAME = 'poke-calc-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -35,6 +35,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
   }
 });
+
 
 
 
