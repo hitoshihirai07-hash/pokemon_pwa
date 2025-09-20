@@ -27,7 +27,7 @@
     <button class="tab"        data-tab="sr"    type="button">④ ステルスロック</button>
     <button class="tab"        data-tab="teams" type="button">⑤ 構築インポート</button>
     <button class="tab"        data-tab="party" type="button">⑥ パーティ</button>
-    <button class="tab"        data-tab="memo"  type="button">⑦ タイマー & メモ & ログ</button>
+    <button class="tab"        data-tab="memo"  type="button">⑦ メモ & ログ</button>
   </div>
 </header>
 
@@ -233,18 +233,6 @@
 
   <!-- ⑦ タイマー & メモ & ログ -->
   <section id="tab-memo" class="hidden">
-    <div class="card"><h2>⑦ タイマー</h2>
-      <div class="grid grid-3">
-        <div class="row"><label>分</label><input id="timerMin" type="number" value="15"></div>
-        <div class="row"><label>状態</label><input id="timerState" type="text" value="停止中" readonly></div>
-        <div class="row"><label>残り</label><input id="timerRemain" type="text" value="00:00" readonly></div>
-      </div>
-      <div class="flex">
-        <button class="btn" id="timerStart">開始</button>
-        <button class="btn btn-ghost" id="timerStop">停止</button>
-        <button class="btn btn-ghost" id="timerReset">リセット</button>
-      </div>
-    </div>
     <div class="card"><h2>メモ</h2><textarea id="memoBox" placeholder="自由記入"></textarea></div>
     <div class="card"><h2>攻撃ログ</h2><textarea id="memoLog" readonly></textarea></div>
   </section>
