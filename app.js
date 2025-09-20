@@ -479,182 +479,57 @@ $('teamPageSize').addEventListener('change', ()=>{ teamPageSize=Number($('teamPa
 $('teamQuery').addEventListener('input', ()=>{ const q=$('teamQuery').value.trim(); TEAMS_F = filterTeams(TEAMS,q); teamPage=1; renderTeams(); });
 
 function parseCSV(text){
-  text = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-  // 区切り推定
-  const sample = text.split('\n').slice(0,5).join('\n');
-  let delim = ',';
-  const score = (ch)=> (sample.match(new RegExp('\\' + ch,'g'))||[]).length;
-  const cand = [{c:'\t',s:score('\t')},{c:';',s:score(';')},{c:',',s:score(',')}].sort((a,b)=>b.s-a.s);
-  if (cand[0].s > 0) delim = cand[0].c;
-
-  const rows = [];
-  let cur = '', inQ = false, line = [], i = 0;
-  const pushCell = ()=>{ line.push(cur); cur=''; };
-  const pushLine = ()=>{ rows.push(line); line=[]; };
-  const s = text + '\n'; // 最後に行を閉じる
-  while (i < s.length){
-    const ch = s[i];
-    if (inQ){
-      if (ch === '"'){
-        if (s[i+1] === '"'){ cur+='"'; i+=2; continue; }
-        inQ = false; i++; continue;
-      } else { cur += ch; i++; continue; }
-    } else {
-      if (ch === '"'){ inQ = true; i++; continue; }
-      if (ch === delim){ pushCell(); i++; continue; }
-      if (ch === '\n'){ pushCell(); pushLine(); i++; continue; }
-      cur += ch; i++;
-    }
-  }
-  if (rows.length === 0) return [];
-  const headers = rows[0].map(h=>h.trim());
-  const out = [];
-  for (let r = 1; r < rows.length; r++){
-    if (!rows[r] || rows[r].length === 0) continue;
-    const obj = {};
-    headers.forEach((h,idx)=> obj[h] = rows[r][idx] ?? '');
-    // 全列空はスキップ
-    if (Object.values(obj).every(v => (v==null || String(v).trim()===''))) continue;
+  // 簡易CSV（ダブルクォート対応）
+  const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(x=>x.length>0);
+  const out=[];
+  let headers=null;
+  for(let i=0;i<lines.length;i++){
+    const row=parseCSVLine(lines[i]); if(!row) continue;
+    if(!headers){ headers=row; continue; }
+    const obj={}; headers.forEach((h,idx)=> obj[h]=row[idx]);
     out.push(obj);
   }
   return out;
 }
+function parseCSVLine(line){
+  const res=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(inQ){
+      if(c=='"'){ if(line[i+1]=='"'){ cur+='"'; i++; } else { inQ=false; } }
+      else cur+=c;
+    }else{
+      if(c==','){ res.push(cur); cur=''; }
+      else if(c=='"'){ inQ=true; }
+      else cur+=c;
+    }
+  }
+  res.push(cur); return res;
 }
 function normalizeTeams(rows){
-  if (!rows || !rows.length) return [];
-
-  // A) JSONライク → そのまま
-  const out = [];
-  for (const r of rows){
-    if (Array.isArray(r.members) && r.members.length){
-      out.push({
-        meta: {season: r.season||r.シーズン||'', rule: r.rule||r.ルール||'', rank: r.rank||r.順位||r.rating||r.レート||''},
-        members: r.members.slice(0,6).map(m=>({
-          name: m.name || m.pokemon || m.ポケモン || m.名前 || '',
-          item: m.item || m.持ち物 || '',
-          tera: m.tera || m.テラ || m.テラタイプ || ''
-        }))
-      });
+  // ざっくり：1チーム = 6行構成（IDでグルーピング） or 1行に6匹
+  // ここでは、よくある "poke1_name ... poke6_name" 形式 / "name1..6" 形式 / メンバー配列 を吸収
+  const teams=[];
+  for(const r of rows){
+    // JSONライク：{ members:[{name,item,tera},...6] }
+    if(Array.isArray(r.members)&&r.members.length){
+      teams.push({meta:{season:r.season||'',rule:r.rule||'',rank:r.rank||r.rating||''}, members:r.members.slice(0,6).map(m=>({name:m.name||m.pokemon||'', item:m.item||m.持ち物||'', tera:m.tera||m.テラ||m.テラタイプ||''}))});
+      continue;
+    }
+    // 1行に6匹（name1..6 / poke1_name..poke6_name）
+    const mem=[];
+    for(let i=1;i<=6;i++){
+      const name = r[`name${i}`] || r[`poke${i}_name`] || r[`pokemon${i}`] || r[`ポケモン${i}`] || '';
+      if(!name) continue;
+      const item = r[`item${i}`] || r[`poke${i}_item`] || r[`持ち物${i}`] || '';
+      const tera = r[`tera${i}`] || r[`poke${i}_tera`] || r[`テラ${i}`] || r[`テラタイプ${i}`] || '';
+      mem.push({name,item,tera});
+    }
+    if(mem.length){
+      teams.push({meta:{season:r.season||r.シーズン||'',rule:r.rule||r.ルール||'',rank:r.rank||r.順位||r.rating||r.レート||''}, members:mem});
     }
   }
-  if (out.length) return out;
-
-  // ヘッダー正規化用
-  const norm = s => String(s||'').trim().toLowerCase()
-     .replace(/\s+/g,'')
-     .replace(/[（）()]/g,'')
-     .replace(/ポケモン|pokemon|poke/g,'name')
-     .replace(/名前/g,'name')
-     .replace(/もちもの|持ち物|item/g,'item')
-     .replace(/テラタイプ|テラ|tera/g,'tera');
-
-  // B) 1行に6匹パターン
-  const tryRow = (r)=>{
-    const keys = Object.keys(r);
-    const map = {}; // index -> {name,item,tera}
-    for (const k of keys){
-      const nk = norm(k);
-      // 末尾の数字（1..6）を拾う
-      const m = nk.match(/(name|item|tera)(\d{1,2})$/);
-      if (!m) continue;
-      const kind = m[1];
-      const idx = parseInt(m[2],10);
-      if (idx < 1 || idx > 6) continue;
-      map[idx] = map[idx] || {name:'',item:'',tera:''};
-      map[idx][kind] = r[k]?.toString().trim() || '';
-    }
-    const members = [];
-    for (let i=1;i<=6;i++){
-      if (!map[i] || !map[i].name) continue;
-      members.push(map[i]);
-    }
-    if (members.length) {
-      return {
-        meta: {
-          season: r.season||r.シーズン||'',
-          rule:   r.rule||r.ルール||'',
-          rank:   r.rank||r.順位||r.rating||r.レート||''
-        },
-        members
-      };
-    }
-    return null;
-  };
-
-  const tmp = [];
-  for (const r of rows){
-    const t = tryRow(r);
-    if (t) tmp.push(t);
-  }
-  if (tmp.length) return tmp;
-
-  // C) 6行で1チーム（team_id or 同一キーでグループ化）
-  // よくあるパターン: 各行に「チームID/順番/名前/持ち物/テラ」など
-  // 代表的なキー候補を推測
-  const guessIdKey = ()=>{
-    const freq = {};
-    for (const r of rows){
-      for (const k of Object.keys(r)){
-        const nk = norm(k);
-        if (/(team|チーム)id$/.test(nk) || /(グループ|id)$/.test(nk)) freq[k]=(freq[k]||0)+1;
-      }
-    }
-    // 一番出現が多いのを採用
-    const k = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0];
-    return k || null;
-  };
-  const idKey = guessIdKey();
-  if (idKey){
-    const groups = {};
-    for (const r of rows){
-      const id = (r[idKey] ?? '').toString();
-      if (!id) continue;
-      groups[id] = groups[id] || [];
-      groups[id].push(r);
-    }
-    for (const id of Object.keys(groups)){
-      // 各グループから最大6匹拾う
-      const g = groups[id];
-      const mem = [];
-      for (const r of g){
-        // 列名ゆるゆる抽出
-        const keys = Object.keys(r);
-        const pickCol = (want)=> {
-          // want: 'name'|'item'|'tera'
-          // 優先度順でキーマッチ
-          const pri = want==='name'
-            ? [/^(名前|ポケモン|name|pokemon|poke)$/i]
-            : want==='item'
-            ? [/^(持ち物|item|もちもの)$/i]
-            : [/^(テラタイプ|テラ|tera)$/i];
-          for (const p of pri){
-            const hit = keys.find(k=> p.test(k));
-            if (hit) return r[hit]?.toString().trim() || '';
-          }
-          // それでもなければ norm で走査
-          for (const k of keys){
-            const nk=norm(k);
-            if (want==='name' && nk==='name') return r[k]?.toString().trim()||'';
-            if (want==='item' && nk==='item') return r[k]?.toString().trim()||'';
-            if (want==='tera' && nk==='tera') return r[k]?.toString().trim()||'';
-          }
-          return '';
-        };
-        const name = pickCol('name');
-        if (!name) continue;
-        mem.push({name, item: pickCol('item'), tera: pickCol('tera')});
-        if (mem.length>=6) break;
-      }
-      if (mem.length){
-        out.push({ meta:{season:'',rule:'',rank:''}, members:mem });
-      }
-    }
-    if (out.length) return out;
-  }
-
-  // どれにも当てはまらない場合は空
-  return [];
-}
+  return teams;
 }
 function filterTeams(src, q){
   if(!q) return src;
