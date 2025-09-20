@@ -437,6 +437,36 @@
         <datalist id="pkmnlist"></datalist>
         <img id="dexImg" alt="" style="margin-top:6px;max-height:120px;display:none">
         <div id="dexInfo" class="muted" style="margin-top:8px">未選択</div>
+        <!-- 図鑑：種族値を任意の実数値計へ反映 -->
+<div class="tight" style="margin-top:8px">
+  <select id="dexSendTarget">
+    <optgroup label="メイン：攻撃側">
+      <option value="atk-攻撃">→ 攻撃側 実数値計（攻撃）にセット</option>
+      <option value="atk-特攻">→ 攻撃側 実数値計（特攻）にセット</option>
+    </optgroup>
+    <optgroup label="メイン：防御側">
+      <option value="def-HP">→ 防御側 実数値計（HP）にセット</option>
+      <option value="def-防御">→ 防御側 実数値計（防御）にセット</option>
+      <option value="def-特防">→ 防御側 実数値計（特防）にセット</option>
+    </optgroup>
+    <optgroup label="1対3：相手1">
+      <option value="d1-HP">→ 相手1 実数値計（HP）にセット</option>
+      <option value="d1-防御">→ 相手1 実数値計（防御）にセット</option>
+      <option value="d1-特防">→ 相手1 実数値計（特防）にセット</option>
+    </optgroup>
+    <optgroup label="1対3：相手2">
+      <option value="d2-HP">→ 相手2 実数値計（HP）にセット</option>
+      <option value="d2-防御">→ 相手2 実数値計（防御）にセット</option>
+      <option value="d2-特防">→ 相手2 実数値計（特防）にセット</option>
+    </optgroup>
+    <optgroup label="1対3：相手3">
+      <option value="d3-HP">→ 相手3 実数値計（HP）にセット</option>
+      <option value="d3-防御">→ 相手3 実数値計（防御）にセット</option>
+      <option value="d3-特防">→ 相手3 実数値計（特防）にセット</option>
+    </optgroup>
+  </select>
+  <button class="btn" type="button" onclick="applyDexBase()">種族値を適用</button>
+</div>
 
         <details style="margin-top:10px">
           <summary>実数値計（HP/攻撃/防御/特攻/特防/素早）</summary>
