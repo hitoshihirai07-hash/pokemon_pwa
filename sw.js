@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.2';
+const VERSION = 'v1.0.3';
 const CACHE_NAME = `poke-tools-${VERSION}`;
 const ASSETS = [
   './',
