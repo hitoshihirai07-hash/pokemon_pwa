@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>ポケモン統合ツール</title>
+  <title>ポケダメツール</title>
   <link rel="icon" href="data:,">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0b74de">
@@ -12,7 +12,7 @@
 <body>
 <header>
   <div class="top">
-    <div>ポケモン統合ツール（ダメ計/実数値/1対3/SR/構築/パーティ/タイマー）</div>
+    <div>ポケダメツール</div>
     <div class="flex">
       <span class="pill" id="badgeTeams">構築: 0件</span>
       <span class="pill" id="badgeDex">図鑑: 未読込</span>
@@ -249,6 +249,12 @@
     <div class="card"><h2>攻撃ログ</h2><textarea id="memoLog" readonly></textarea></div>
   </section>
 </main>
+  
+<footer class="app-footer app-footer--sticky">
+  <small class="muted">
+    本ツールは非公式のファンメイドです。各社の公式製品・サービスとは関係ありません。
+  </small>
+</footer>
 
 <!-- スクリプト（順序重要） -->
 <script defer src="js/dex.js"></script>
