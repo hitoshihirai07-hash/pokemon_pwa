@@ -19,7 +19,7 @@ for (const b of tabs){
 }
 
 /* ===== 共通 ===== */
-function set(id,v){ const el=document.getElementById(id); if(el) el.value=v; }
+function set(id,v){ const el=document.getElementById(id); if(el!=null) el.value=v; }
 function val(id,def){ const el=document.getElementById(id); const n=Number(el?.value); return Number.isFinite(n)?n:def; }
 function pct(x,tot){ return tot? (x/tot*100).toFixed(1):'0.0'; }
 function ceilDiv(a,b){ return Math.floor((a+b-1)/(b||1)); }
@@ -62,12 +62,12 @@ function fillMoveType(id){
 fillMoveType('moveType'); fillMoveType('v13_moveType');
 
 /* ===== 実数値計算 UI ===== */
-const STAT_KEYS=['HP','攻撃','防御','特攻','特防','素早'];
+const STAT_KEYS=['HP','攻撃','防御','特攻','特防','素早','素早さ']; // 表記ゆれ吸収
 function buildStatsUI(side){
   const box=document.getElementById('stats-'+side); if(!box) return;
   box.innerHTML='';
   const wrap=document.createElement('div');
-  STAT_KEYS.forEach(k=>{
+  ['HP','攻撃','防御','特攻','特防','素早'].forEach(k=>{
     const row=document.createElement('div'); row.className='row';
     row.innerHTML=`<label>${k}</label>
       <div class="flex" style="gap:6px;flex-wrap:wrap">
@@ -93,14 +93,14 @@ function calcStat(base, iv, ev, lv, nat, isHP){
   return Math.floor(v*nat);
 }
 function recalcSide(side){
-  STAT_KEYS.forEach(k=>{
+  ['HP','攻撃','防御','特攻','特防','素早'].forEach(k=>{
     const base=+val(`${side}_base_${k}`,50), iv=+val(`${side}_iv_${k}`,31), ev=+val(`${side}_ev_${k}`,0), nat=+val(`${side}_nat_${k}`,1);
     const final=calcStat(base,iv,ev,50,nat,(k==='HP')); set(`${side}_final_${k}`,final);
   });
 }
 function setEV(side,k,v){ set(`${side}_ev_${k}`,v); recalcSide(side); }
 ['atk','def'].forEach(s=>{
-  STAT_KEYS.forEach(k=>{
+  ['HP','攻撃','防御','特攻','特防','素早'].forEach(k=>{
     ['base','iv','ev','nat'].forEach(t=>{
       const id=`${s}_${t}_${k}`;
       document.addEventListener('input',e=>{ if(e.target && e.target.id===id) recalcSide(s); });
@@ -109,36 +109,31 @@ function setEV(side,k,v){ set(`${side}_ev_${k}`,v); recalcSide(side); }
 });
 recalcSide('atk'); recalcSide('def');
 
-document.getElementById('btnApplyStats')?.addEventListener('click',()=>{
-  set('atkStat', val('atk_final_攻撃',172));
-  set('defStat', val('def_final_防御',120));
-  set('defHP',   val('def_final_HP',155));
-  tabs.forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="calc"]').classList.add('active');
-  Object.values(sections).forEach(s=>s.classList.add('hidden')); sections.calc.classList.remove('hidden');
-});
-
-/* ===== 図鑑連携（実数値タブ先頭の検索→ベース反映） ===== */
-function rebuildDexList() {
-  const dl = document.getElementById('dexList'); if (!dl) return;
-  dl.innerHTML = '';
-  (window.DEX || []).slice(0, 5000).forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = `${p.No} ${p.名前}`;
-    dl.appendChild(opt);
-  });
+/* ===== 図鑑連携：表記ゆれ吸収 & ベース反映 ===== */
+function getStatFromMon(mon, key){
+  if(!mon) return undefined;
+  const map = {
+    'HP':['HP','ＨＰ','hp'],
+    '攻撃':['攻撃','こうげき','攻','atk'],
+    '防御':['防御','ぼうぎょ','防','def'],
+    '特攻':['特攻','とくこう','特攻撃','spa','特攻?'],
+    '特防':['特防','とくぼう','spd'],
+    '素早':['素早','素早さ','すばやさ','spe']
+  };
+  const keys = map[key]||[key];
+  for(const k of keys){ if(mon[k]!=null && mon[k]!=='' ) return Number(mon[k]); }
+  return undefined;
 }
-document.addEventListener('dex-ready', rebuildDexList);
-
 function applyMonToBase(side, mon) {
   if (!mon) return;
-  const map = { 'HP':'HP','攻撃':'攻撃','防御':'防御','特攻':'特攻','特防':'特防','素早':'素早' };
-  Object.keys(map).forEach(k => {
-    const id = `${side}_base_${k}`;
-    const el = document.getElementById(id);
-    if (el && mon[k] != null) el.value = mon[k];
+  ['HP','攻撃','防御','特攻','特防','素早'].forEach(k=>{
+    const v = getStatFromMon(mon,k);
+    if(v!=null) set(`${side}_base_${k}`, v);
   });
   recalcSide(side);
 }
+
+/* 実数値タブ：攻/防 図鑑検索欄から反映 */
 document.addEventListener('input', (e) => {
   if (e.target?.id === 'dexSearchAtk') {
     const mon = window.__DEX__?.findMon(e.target.value.trim()) || null;
@@ -148,13 +143,30 @@ document.addEventListener('input', (e) => {
     if (mon) applyMonToBase('def', mon);
   }
 });
+document.addEventListener('dex-ready', ()=>{
+  const dl = document.getElementById('dexList'); if (!dl) return;
+  dl.innerHTML = '';
+  (window.DEX || []).slice(0, 5000).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = `${p.No} ${p.名前}`;
+    dl.appendChild(opt);
+  });
+});
 document.getElementById('btnDexLoad')?.addEventListener('click', () => window.__DEX__?.pickAndLoad());
 document.getElementById('btnDexClear')?.addEventListener('click', () => window.__DEX__?.clearLocal());
 
-/* ===== ダメージ計算 ===== */
+document.getElementById('btnApplyStats')?.addEventListener('click',()=>{
+  set('atkStat', val('atk_final_攻撃',172));
+  set('defStat', val('def_final_防御',120));
+  set('defHP',   val('def_final_HP',155));
+  tabs.forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="calc"]').classList.add('active');
+  Object.values(sections).forEach(s=>s.classList.add('hidden')); sections.calc.classList.remove('hidden');
+});
+
+/* ===== ダメージ計算（①） ===== */
 const resultBox=document.getElementById('result'), hpbar=document.getElementById('hpbar'), logBox=document.getElementById('logBox'), memoLog=document.getElementById('memoLog');
-let LOG=[]; function writeLog(s){ LOG.push(s); logBox.value=LOG.join('\n'); if(memoLog) memoLog.value=LOG.join('\n'); const b=document.getElementById('badgeLog'); if(b) b.textContent=`ログ: ${LOG.length}件`; }
-document.getElementById('btnClearLog')?.addEventListener('click',()=>{ LOG=[]; writeLog(''); });
+let LOG=[]; function writeLog(){ logBox.value=LOG.join('\n'); if(memoLog) memoLog.value=LOG.join('\n'); const b=document.getElementById('badgeLog'); if(b) b.textContent=`ログ: ${LOG.length}件`; }
+document.getElementById('btnClearLog')?.addEventListener('click',()=>{ LOG=[]; writeLog(); });
 let undoStack=[]; document.getElementById('btnUndo')?.addEventListener('click',()=>{ if(!undoStack.length) return; const last=undoStack.pop(); logBox.value=last.log; if(memoLog) memoLog.value=last.log; set('defHP', last.hp); hpbar.style.width= last.hpPct; });
 
 function dmgRange({level=50,power,atk,def,stab=1,typeMul=1,rankAtk=1,rankDef=1,extra=1,mode='phys',crit=false,moveType='ノーマル',weather='none', rockInSand=false, iceInSnow=false}){
@@ -178,7 +190,7 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
   const rankAtk=RANK[document.getElementById('atkRank').value], rankDef=RANK[document.getElementById('defRank').value];
   const extra=val('extra',1), mode=document.getElementById('mode').value, moveType=document.getElementById('moveType').value;
   const weather=document.getElementById('weather').value, crit=(+document.getElementById('crit').value)>1, hits=+document.getElementById('hits').value;
-  const rockInSand=document.getElementById('chkRockInSand').checked, iceInSnow=document.getElementById('chkIceInSnow').checked;
+  const rockInSand=document.getElementById('chkRockInSand')?.checked, iceInSnow=document.getElementById('chkIceInSnow')?.checked;
 
   const [mn,mx]=dmgRange({power,atk:atkStat,def:defStat0,stab,typeMul,rankAtk,rankDef,extra,mode,crit,moveType,weather,rockInSand,iceInSnow});
   const totMin=mn*hits, totMax=mx*hits;
@@ -201,29 +213,72 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
   hpbar.style.width = `${remainPct}%`;
 
   undoStack.push({log:logBox.value, hp:hp0, hpPct:`100%`});
-  writeLog(`[${new Date().toLocaleTimeString()}] 威力${power} STAB${stab} 相性${typeMul} 天候${weather}${rockInSand?'(岩SpD1.5)':''}${iceInSnow?'(氷Def1.5)':''} 急所${crit?'有':'無'} 攻R${document.getElementById('atkRank').value} 防R${document.getElementById('defRank').value} hit${hits} → 1発:${mn}-${mx} 合計:${totMin}-${totMax} | ${ko}`);
+  LOG.push(`[${new Date().toLocaleTimeString()}] 威力${power} STAB${stab} 相性${typeMul} 天候${weather}${rockInSand?'(岩SpD1.5)':''}${iceInSnow?'(氷Def1.5)':''} 急所${crit?'有':'無'} 攻R${document.getElementById('atkRank').value} 防R${document.getElementById('defRank').value} hit${hits} → 1発:${mn}-${mx} 合計:${totMin}-${totMax} | ${ko}`);
+  writeLog();
 });
 
-/* ===== 1対3 ===== */
-function calcOne(i){
-  const atk=val('v13_atk',172), power=val('v13_power',80), stab=+val('v13_stab',1.5);
-  const rankAtk=RANK[String(val('v13_atkRank',0))];
-  const extra=val('v13_extra',1);
-  const mode=document.getElementById('v13_mode').value, hits=+val('v13_hits',1), moveType=document.getElementById('v13_moveType','ノーマル');
-  const def=val(`v13_def${i}`,120), rankDef=RANK[String(val(`v13_defRank${i}`,0))], hp=val(`v13_hp${i}`,155);
-  const typeMul=+val(`v13_type${i}`,1), weather=document.getElementById(`v13_weather${i}`).value;
-  const rockInSand=document.getElementById(`v13_rock${i}`).checked, iceInSnow=document.getElementById(`v13_ice${i}`).checked;
-  const crit=(+val('v13_crit',1)>1);
+/* ===== 1対3：検索欄を動的追加し、命中時に初期値をセット ===== */
+(function enhanceV13(){
+  const sec = document.getElementById('tab-v13'); if(!sec) return;
 
-  const [mn,mx]=dmgRange({power,atk,def,stab,typeMul,rankAtk,rankDef,extra,mode,crit,moveType,weather,rockInSand,iceInSnow});
-  const totMin=mn*hits, totMax=mx*hits;
-  let txt=`1発:${mn}-${mx} / 合計:${totMin}-${totMax} | `;
-  if(totMin>=hp) txt+='確定1発';
-  else if(totMax>=hp) txt+='乱数1発（高乱数）';
-  else {const a=ceilDiv(hp,mn||1), b=ceilDiv(hp,mx||1); txt+=(a===b)?`確定${a}発`:`乱数${a}～${b}発`;}
-  document.getElementById(`v13_out${i}`).textContent=txt;
-}
-document.getElementById('btnV13')?.addEventListener('click',()=>[1,2,3].forEach(calcOne));
+  // 上：自分 用検索
+  const selfCard = document.createElement('div');
+  selfCard.className='card small';
+  selfCard.innerHTML = `
+    <div class="grid grid-3">
+      <div class="row"><label>（自分）図鑑検索</label><input id="v13_self_search" list="dexList" placeholder="例：1000 サーフゴー"></div>
+      <div class="row"><label>自動入力ヒント</label><input id="v13_self_hint" value="攻撃/特攻は手動で調整可" readonly></div>
+      <div class="row"><label>計算前提</label><input value="Lv50 / IV31 / EV0 / 補正1.0" readonly></div>
+    </div>`;
+  sec.querySelector('.card.small')?.insertAdjacentElement('beforebegin', selfCard);
+
+  // 相手×3 に検索欄を差し込む
+  [1,2,3].forEach(i=>{
+    const holder = document.getElementById(`v13_out${i}`)?.closest('.card.small');
+    if(!holder) return;
+    const row = document.createElement('div');
+    row.className='row';
+    row.innerHTML = `<label>（相手${i}）図鑑検索</label><input id="v13_enemy_search_${i}" list="dexList" placeholder="例：25 ピカチュウ">`;
+    holder.insertBefore(row, holder.firstChild);
+  });
+
+  // 汎用：モンからLv50初期値（HP/Def/SpD）を算出してセット
+  function applyEnemy(i, mon){
+    if(!mon) return;
+    const baseHP = getStatFromMon(mon,'HP') ?? 50;
+    const baseDef = getStatFromMon(mon,'防御') ?? 50;
+    const baseSpD = getStatFromMon(mon,'特防') ?? 50;
+    const hp  = calcStat(baseHP,31,0,50,1,true);
+    const def = calcStat(baseDef,31,0,50,1,false);
+    const spd = calcStat(baseSpD,31,0,50,1,false);
+    // どちらを使うかは攻撃方法次第なので、とりあえず防御欄に物理基準の Def を入れる（必要なら手動変更）
+    set(`v13_hp${i}`, hp);
+    set(`v13_def${i}`, def);
+  }
+  function applySelf(mon){
+    if(!mon) return;
+    // 自分側は攻撃/特攻どちらを使うかがケースごとに違うため、初期値は“攻撃”を提示のみ（上書き可）
+    const baseAtk = getStatFromMon(mon,'攻撃') ?? 50;
+    const atk = calcStat(baseAtk,31,0,50,1,false);
+    set('v13_atk', atk);
+  }
+
+  // イベント
+  document.addEventListener('input', (e)=>{
+    const t=e.target?.id||'';
+    if(t==='v13_self_search'){
+      const mon = window.__DEX__?.findMon(e.target.value.trim()) || null;
+      if(mon) applySelf(mon);
+    }else{
+      const m = t.match(/^v13_enemy_search_(\d)$/);
+      if(m){
+        const idx=Number(m[1]);
+        const mon = window.__DEX__?.findMon(e.target.value.trim()) || null;
+        if(mon) applyEnemy(idx, mon);
+      }
+    }
+  });
+})();
 
 /* ===== ステルスロック ===== */
 const SR_MAP={'等倍':1,'1/2':0.5,'1/4':0.25,'2倍':2,'4倍':4};
@@ -236,7 +291,7 @@ document.getElementById('btnSR')?.addEventListener('click',()=>{
   const dmg=Math.floor(hp*0.125*mul); set('sr_result',`${dmg} ダメージ（${pct(dmg,hp)}%）`);
 });
 
-/* ===== 構築インポート ===== */
+/* ===== 構築インポート（既存） ===== */
 let ALL_TEAMS=[]; function setTeams(arr){ ALL_TEAMS=Array.isArray(arr)?arr:[]; const b=document.getElementById('badgeTeams'); if(b) b.textContent=`構築: ${ALL_TEAMS.length}件`; renderTeamsList(); }
 const diagBox=document.getElementById('diagBox');
 document.getElementById('diagBtn')?.addEventListener('click',()=>{ diagBox.classList.toggle('hidden'); });
@@ -316,21 +371,66 @@ function renderTeamsList(){
 }
 document.getElementById('filterBox')?.addEventListener('input', renderTeamsList);
 
-/* ===== パーティ ===== */
+/* ===== パーティ：努力値＋性格補正＋プリセット ===== */
 const partyGrid=document.getElementById('partyGrid');
 function buildPartyUI(){
   if(!partyGrid) return;
   partyGrid.innerHTML='';
   for(let i=1;i<=6;i++){
     const c=document.createElement('div'); c.className='card';
-    c.innerHTML=`<div class="slot-h"><strong>スロット ${i}</strong> <small id="p${i}Meta" class="muted"></small></div>
-      <div class="row"><label>名前</label><input id="p${i}Name" type="text" placeholder="例：サーフゴー"></div>
+    c.innerHTML=`
+      <div class="slot-h"><strong>スロット ${i}</strong> <small id="p${i}Meta" class="muted"></small></div>
+      <div class="row"><label>名前</label><input id="p${i}Name" type="text" placeholder="例：サーフゴー" list="dexList"></div>
       <div class="row"><label>持ち物</label><input id="p${i}Item" type="text"></div>
-      <div class="row"><label>テラタイプ</label><input id="p${i}Tera" type="text"></div>`;
+      <div class="row"><label>テラタイプ</label><input id="p${i}Tera" type="text"></div>
+      <hr>
+      <div class="row"><label>性格（簡易）</label>
+        <select id="p${i}Nature">
+          <option value="neutral" selected>補正なし</option>
+          <option value="adamant">いじっぱり(A↑C↓)</option>
+          <option value="modest">ひかえめ(C↑A↓)</option>
+          <option value="jolly">ようき(S↑C↓)</option>
+          <option value="timid">おくびょう(S↑A↓)</option>
+          <option value="impish">わんぱく(Df↑C↓)</option>
+          <option value="bold">ずぶとい(Df↑A↓)</option>
+          <option value="careful">しんちょう(SpD↑C↓)</option>
+          <option value="calm">おだやか(SpD↑A↓)</option>
+        </select>
+      </div>
+      <div class="row"><label>努力値（4の倍数推奨）</label>
+        <div class="flex">
+          <input type="number" id="p${i}EV_HP"  placeholder="H" min="0" max="252" step="4" value="0" style="width:80px">
+          <input type="number" id="p${i}EV_Atk" placeholder="A" min="0" max="252" step="4" value="0" style="width:80px">
+          <input type="number" id="p${i}EV_Def" placeholder="B" min="0" max="252" step="4" value="0" style="width:80px">
+          <input type="number" id="p${i}EV_SpA" placeholder="C" min="0" max="252" step="4" value="0" style="width:80px">
+          <input type="number" id="p${i}EV_SpD" placeholder="D" min="0" max="252" step="4" value="0" style="width:80px">
+          <input type="number" id="p${i}EV_Spe" placeholder="S" min="0" max="252" step="4" value="0" style="width:80px">
+        </div>
+      </div>
+      <div class="row"><label>プリセット</label>
+        <div class="flex">
+          <button class="btn btn-ghost small" type="button" id="p${i}Preset1">A+S 252</button>
+          <button class="btn btn-ghost small" type="button" id="p${i}Preset2">C+S 252</button>
+          <button class="btn btn-ghost small" type="button" id="p${i}Preset3">A+H 252</button>
+        </div>
+      </div>
+    `;
     partyGrid.appendChild(c);
+
+    // プリセット挙動
+    document.getElementById(`p${i}Preset1`).onclick=()=>{
+      set(`p${i}EV_Atk`,252); set(`p${i}EV_Spe`,252);
+    };
+    document.getElementById(`p${i}Preset2`).onclick=()=>{
+      set(`p${i}EV_SpA`,252); set(`p${i}EV_Spe`,252);
+    };
+    document.getElementById(`p${i}Preset3`).onclick=()=>{
+      set(`p${i}EV_Atk`,252); set(`p${i}EV_HP`,252);
+    };
   }
 }
 buildPartyUI();
+
 function refreshPartyJSON(){
   const ta=document.getElementById('partyJSON'); if(!ta) return;
   const data={ members: getParty() };
@@ -341,7 +441,12 @@ function getParty(){
     arr.push({
       name:document.getElementById(`p${i}Name`)?.value||'',
       item:document.getElementById(`p${i}Item`)?.value||'',
-      tera:document.getElementById(`p${i}Tera`)?.value||''
+      tera:document.getElementById(`p${i}Tera`)?.value||'',
+      nature:document.getElementById(`p${i}Nature`)?.value||'neutral',
+      ev:{
+        hp:+val(`p${i}EV_HP`,0), atk:+val(`p${i}EV_Atk`,0), def:+val(`p${i}EV_Def`,0),
+        spa:+val(`p${i}EV_SpA`,0), spd:+val(`p${i}EV_SpD`,0), spe:+val(`p${i}EV_Spe`,0)
+      }
     });
   } return arr;
 }
@@ -357,7 +462,7 @@ function applyTeamToParty(team){
   Object.values(sections).forEach(s=>s.classList.add('hidden')); sections.party.classList.remove('hidden');
 }
 for(let i=1;i<=6;i++){
-  ['Name','Item','Tera'].forEach(f=>{
+  ['Name','Item','Tera','Nature','EV_HP','EV_Atk','EV_Def','EV_SpA','EV_SpD','EV_Spe'].forEach(f=>{
     document.addEventListener('input',e=>{ if(e.target && e.target.id===`p${i}${f}`) refreshPartyJSON(); });
   });
 }
