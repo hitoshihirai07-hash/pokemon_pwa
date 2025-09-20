@@ -1,0 +1,35 @@
+:root{--brand:#0b74de;--bg:#f6f7fb;--card:#fff;--muted:#666}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif;margin:0;background:var(--bg);color:#222}
+header{position:sticky;top:0;z-index:10;background:var(--brand);color:#fff;padding:10px 16px}
+header .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.tab{border:1px solid #cfe0ff;border-radius:999px;background:#e9f1ff;color:#1c4fbf;padding:6px 12px;font-weight:700;cursor:pointer}
+.tab.active{background:#1c4fbf;color:#fff;border-color:#1c4fbf}
+main{padding:16px;max-width:1200px;margin:0 auto}
+.card{background:var(--card);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:16px;margin:12px 0}
+h2,h3{margin:.2em 0 .6em}
+label{font-size:.95em}
+input[type="number"],input[type="text"],select,textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:10px}
+textarea{min-height:120px}
+.row{display:grid;grid-template-columns:180px 1fr;gap:10px;align-items:center;margin:8px 0}
+.grid{display:grid;gap:12px}
+@media(min-width:980px){.grid-2{grid-template-columns:1fr 1fr}.grid-3{grid-template-columns:1fr 1fr 1fr}}
+.btn{border:0;border-radius:10px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
+.btn-ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+.muted{color:var(--muted);font-size:.95em}
+.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef4ff;color:#2a58b5;font-weight:700}
+.flex{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.small{font-size:.9em}
+.bar{height:14px;background:#eee;border-radius:8px;overflow:hidden}
+.bar>div{height:100%;background:#22c55e}
+.team-grid{display:grid;gap:12px}
+@media(min-width:980px){.team-grid{grid-template-columns:1fr 1fr}}
+.mons{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.mon{border:1px solid #eee;border-radius:10px;padding:6px;text-align:center;font-size:.9em}
+.party-grid{display:grid;gap:12px}
+@media(min-width:980px){.party-grid{grid-template-columns:1fr 1fr}}
+.slot-h{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.slot-h small{color:var(--muted)}
+pre.diag{background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;overflow:auto;max-height:240px}
+.hidden{display:none}
