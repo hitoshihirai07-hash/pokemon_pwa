@@ -37,9 +37,7 @@ function parseCSV(text){
   return out;
 }
 
-/* ===== PokeDB形式 正規化 =====
-  例: {season, rule, teams:[{rank, rating_value, team:[{pokemon, form, terastal, item}×≤6]}×N]}
-*/
+/* ===== PokeDB形式 正規化 ===== */
 function normalizeFromPKDB(json){
   if(!json||!Array.isArray(json.teams)) return [];
   const season=json.season??'', rule=json.rule??'';
@@ -57,11 +55,11 @@ function normalizeFromPKDB(json){
   return out;
 }
 
-/* ===== 汎用 正規化（CSV/TSV/JSONの“横並び”や“縦持ち”も吸収） ===== */
+/* ===== 汎用 正規化（CSV/TSV/JSON） ===== */
 function normalizeTeams(rows){
   if(!rows||!rows.length) return [];
 
-  // 1) すでに {members:[...]} 構造ならそのまま受理
+  // すでに {members:[...]} 構造
   const outA=[];
   for(const r of rows){
     if(Array.isArray(r.members)&&r.members.length){
@@ -73,7 +71,7 @@ function normalizeTeams(rows){
   }
   if(outA.length) return outA;
 
-  // 2) 横並び: name1/item1/tera1, name2/item2/tera2, ...
+  // 横並び name1/item1/tera1 ...
   const norm=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,'')
     .replace(/[（）()]/g,'')
     .replace(/ポケモン|pokemon|poke/g,'name')
@@ -105,7 +103,7 @@ function normalizeTeams(rows){
   for(const r of rows){ const t=tryRow(r); if(t) packs.push(t); }
   if(packs.length) return packs;
 
-  // 3) 縦持ち（teamId 等でグループ化）
+  // 縦持ち（teamId など）
   const guessIdKey=()=>{
     const f={};
     for(const r of rows){
