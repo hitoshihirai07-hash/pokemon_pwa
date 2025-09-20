@@ -29,6 +29,10 @@ function text(id,v){ const el=document.getElementById(id); if(el!=null) el.textC
 function pct(x,tot){ return tot? (x/tot*100).toFixed(1):'0.0'; }
 function ceilDiv(a,b){ return Math.floor((a+b-1)/(b||1)); }
 function evQuickSet(inputId, v){ const el=document.getElementById(inputId); if(!el) return; el.value=v; el.dispatchEvent(new Event('input')); }
+function createBtn(lbl, id, cls='btn small'){ const b=document.createElement('button'); b.textContent=lbl; b.className=cls; if(id) b.id=id; return b; }
+function createSelect(id, cls='small'){ const s=document.createElement('select'); if(id) s.id=id; s.className=cls; return s; }
+function createInput(id,ph, cls='small'){ const i=document.createElement('input'); if(id) i.id=id; i.placeholder=ph||''; i.className=cls; return i; }
+function downloadFile(name, text, mime='application/json'){ const blob=new Blob([text],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); }
 
 /* =========================
    ランク倍率（キーは文字列）
@@ -205,7 +209,13 @@ document.getElementById('btnApplyStats')?.addEventListener('click',()=>{
    ダメージ計算（メイン1体）
 ========================= */
 const resultBox=document.getElementById('result'), hpbar=document.getElementById('hpbar'), logBox=document.getElementById('logBox'), memoLog=document.getElementById('memoLog');
-let LOG=[]; function writeLog(){ logBox.value=LOG.join('\n'); if(memoLog) memoLog.value=LOG.join('\n'); const b=document.getElementById('badgeLog'); if(b) b.textContent=`ログ: ${LOG.length}件`; }
+let LOG=[];
+function writeLog(){
+  logBox.value=LOG.join('\n');
+  if(memoLog) memoLog.value=LOG.join('\n');
+  const b=document.getElementById('badgeLog'); if(b) b.textContent=`計算ログ: ${LOG.length}件`;
+  try{ localStorage.setItem('pokeapp_log', JSON.stringify(LOG)); }catch(_){}
+}
 document.getElementById('btnClearLog')?.addEventListener('click',()=>{ LOG=[]; writeLog(); });
 let undoStack=[]; document.getElementById('btnUndo')?.addEventListener('click',()=>{ if(!undoStack.length) return; const last=undoStack.pop(); logBox.value=last.log; if(memoLog) memoLog.value=last.log; set('defHP', last.hp); hpbar.style.width= last.hpPct; });
 
@@ -624,6 +634,7 @@ buildPartyUI();
 function refreshPartyJSON(){
   const ta=document.getElementById('partyJSON'); if(!ta) return;
   const data={ members: getParty() }; ta.value=JSON.stringify(data,null,2);
+  try{ localStorage.setItem('pokeapp_party_autosave', JSON.stringify(data)); }catch(_){}
 }
 function getParty(){
   const arr=[]; for(let i=1;i<=6;i++){
@@ -636,6 +647,20 @@ function getParty(){
       moves:[ document.getElementById(`p${i}Move1`)?.value||'', document.getElementById(`p${i}Move2`)?.value||'', document.getElementById(`p${i}Move3`)?.value||'', document.getElementById(`p${i}Move4`)?.value||'' ]
     });
   } return arr;
+}
+function applyPartySnapshot(data){
+  const mem=(data?.members)||[];
+  for(let i=1;i<=6;i++){
+    const m=mem[i-1]||{};
+    set(`p${i}Name`, m.name||''); set(`p${i}Item`, m.item||''); set(`p${i}Tera`, m.tera||'');
+    set(`p${i}Nature`, m.nature||'neutral');
+    const ev=m.ev||{};
+    set(`p${i}EV_HP`, ev.hp??0); set(`p${i}EV_Atk`, ev.atk??0); set(`p${i}EV_Def`, ev.def??0);
+    set(`p${i}EV_SpA`, ev.spa??0); set(`p${i}EV_SpD`, ev.spd??0); set(`p${i}EV_Spe`, ev.spe??0);
+    const mv = Array.isArray(m.moves)? m.moves: [];
+    set(`p${i}Move1`, mv[0]||''); set(`p${i}Move2`, mv[1]||''); set(`p${i}Move3`, mv[2]||''); set(`p${i}Move4`, mv[3]||'');
+  }
+  refreshPartyJSON();
 }
 function applyTeamToParty(team){
   const mem=team.members||[];
@@ -652,11 +677,298 @@ function applyTeamToParty(team){
 for(let i=1;i<=6;i++){
   ['Name','Item','Tera','Nature','EV_HP','EV_Atk','EV_Def','EV_SpA','EV_SpD','EV_Spe','Move1','Move2','Move3','Move4'].forEach(f=>{
     document.addEventListener('input',e=>{ if(e.target && e.target.id===`p${i}${f}`) refreshPartyJSON(); });
+    document.addEventListener('change',e=>{ if(e.target && e.target.id===`p${i}${f}`) refreshPartyJSON(); });
   });
 }
 document.getElementById('copyPartyJSON')?.addEventListener('click',()=>{ const ta=document.getElementById('partyJSON'); if(!ta) return; ta.select(); document.execCommand('copy'); });
-document.getElementById('clearParty')?.addEventListener('click',()=>{ buildPartyUI(); refreshPartyJSON(); });
+document.getElementById('clearParty')?.addEventListener('click',()=>{ buildPartyUI(); refreshPartyJSON(); buildPartyStorageBar(); });
 refreshPartyJSON();
+
+/* =========================
+   パーティー保存／読込（LocalStorage + JSON）
+========================= */
+function getPartySlots(){ try{ return JSON.parse(localStorage.getItem('pokeapp_party_slots')||'{}'); }catch(_){ return {}; } }
+function putPartySlots(obj){ try{ localStorage.setItem('pokeapp_party_slots', JSON.stringify(obj)); }catch(_){ } }
+function refreshPartySlotSelect(){
+  const sel=document.getElementById('partySlotSel'); if(!sel) return;
+  const slots=getPartySlots(); const last=localStorage.getItem('pokeapp_party_last')||'';
+  sel.innerHTML=''; 
+  Object.keys(slots).sort().forEach(name=>{ const o=document.createElement('option'); o.value=name; o.textContent=name; sel.appendChild(o); });
+  if(last && slots[last]) sel.value=last;
+}
+function buildPartyStorageBar(){
+  const host = document.getElementById('tab-party'); if(!host) return;
+  if(document.getElementById('partyStoreBar')) return;
+  const bar=document.createElement('div'); bar.id='partyStoreBar'; bar.className='flex'; bar.style.gap='8px'; bar.style.margin='8px 0';
+  const nameIn = createInput('partySlotName','スロット名');
+  const sel = createSelect('partySlotSel');
+  const bSave = createBtn('保存','partySave');
+  const bLoad = createBtn('読込','partyLoad');
+  const bDel  = createBtn('削除','partyDel');
+  const bExp  = createBtn('すべて書出','partyExport');
+  const bImp  = createBtn('一括読込','partyImport');
+  bar.append(nameIn, bSave, sel, bLoad, bDel, bExp, bImp);
+  host.insertBefore(bar, host.firstChild);
+
+  bSave.onclick=()=>{
+    const nm=(nameIn.value||'').trim() || prompt('スロット名を入力') || '';
+    if(!nm) return;
+    const slots=getPartySlots(); slots[nm]={members:getParty()};
+    putPartySlots(slots); localStorage.setItem('pokeapp_party_last', nm);
+    refreshPartySlotSelect(); alert('保存しました');
+  };
+  bLoad.onclick=()=>{
+    const nm=document.getElementById('partySlotSel').value; if(!nm){ alert('スロットがありません'); return; }
+    const slots=getPartySlots(); const data=slots[nm]; if(!data){ alert('データが見つかりません'); return; }
+    applyPartySnapshot(data); localStorage.setItem('pokeapp_party_last', nm);
+    alert(`読込：${nm}`);
+  };
+  bDel.onclick=()=>{
+    const nm=document.getElementById('partySlotSel').value; if(!nm) return;
+    if(!confirm(`削除しますか？ [${nm}]`)) return;
+    const slots=getPartySlots(); delete slots[nm]; putPartySlots(slots);
+    if(localStorage.getItem('pokeapp_party_last')===nm) localStorage.removeItem('pokeapp_party_last');
+    refreshPartySlotSelect(); alert('削除しました');
+  };
+  bExp.onclick=()=>{
+    const slots=getPartySlots(); downloadFile('party_slots.json', JSON.stringify(slots,null,2));
+  };
+  bImp.onclick=()=>{
+    const fi=document.createElement('input'); fi.type='file'; fi.accept='.json,application/json';
+    fi.onchange=async ()=>{ const f=fi.files[0]; if(!f) return; const txt=await f.text(); try{ const obj=JSON.parse(txt); if(!obj || typeof obj!=='object'){ alert('不正なJSON'); return; } putPartySlots(obj); refreshPartySlotSelect(); alert('読込完了'); }catch(e){ alert('JSON読込エラー: '+e.message); } };
+    fi.click();
+  };
+
+  refreshPartySlotSelect();
+
+  // オートセーブ復元
+  try{
+    const auto = JSON.parse(localStorage.getItem('pokeapp_party_autosave')||'null');
+    if(auto && auto.members) applyPartySnapshot(auto);
+  }catch(_){}
+}
+buildPartyStorageBar();
+
+/* =========================
+   計算ログ 保存／読込（LocalStorage + TXT）
+========================= */
+function buildLogStorageBar(){
+  const area=logBox; if(!area) return;
+  if(document.getElementById('logStoreBar')) return;
+  const bar=document.createElement('div'); bar.id='logStoreBar'; bar.className='flex'; bar.style.gap='8px'; bar.style.margin='8px 0';
+  const bSave=createBtn('計算ログ保存','logSave');
+  const bLoad=createBtn('計算ログ読込','logLoad');
+  const bExp =createBtn('TXT書出','logExport');
+  const bImp =createBtn('TXT読込','logImport');
+  bar.append(bSave,bLoad,bExp,bImp);
+  area.parentElement.insertBefore(bar, area.nextSibling);
+
+  bSave.onclick=()=>{ try{ localStorage.setItem('pokeapp_log', JSON.stringify(LOG)); alert('保存しました'); }catch(e){ alert('保存失敗'); } };
+  bLoad.onclick=()=>{ try{ const arr=JSON.parse(localStorage.getItem('pokeapp_log')||'[]'); if(Array.isArray(arr)){ LOG=arr; writeLog(); alert('読込しました'); } else alert('データなし'); }catch(e){ alert('読込失敗'); } };
+  bExp.onclick=()=>{ const txt=(LOG||[]).join('\n'); downloadFile('battle_calc_log.txt', txt, 'text/plain'); };
+  bImp.onclick=()=>{
+    const fi=document.createElement('input'); fi.type='file'; fi.accept='.txt,text/plain';
+    fi.onchange=async ()=>{ const f=fi.files[0]; if(!f) return; const txt=await f.text(); LOG=(txt.split(/\r?\n/).filter(x=>x.trim().length)); writeLog(); alert('TXT読込完了'); };
+    fi.click();
+  };
+
+  // 起動時に自動復元
+  try{ const arr=JSON.parse(localStorage.getItem('pokeapp_log')||'[]'); if(Array.isArray(arr) && arr.length){ LOG=arr; writeLog(); } }catch(_){}
+}
+buildLogStorageBar();
+
+/* =========================
+   ★ 対戦ログ（ここが新機能）
+========================= */
+const BATTLE_KEY = 'pokeapp_battles';
+function loadBattles(){ try{ return JSON.parse(localStorage.getItem(BATTLE_KEY)||'[]'); }catch(_){ return []; } }
+function saveBattles(arr){ try{ localStorage.setItem(BATTLE_KEY, JSON.stringify(arr)); }catch(_){ } }
+function nowIso(){ return new Date().toISOString(); }
+function ymdhm(d=new Date()){ const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function getPartySlotsNames(){ return Object.keys(getPartySlots()).sort(); }
+
+function buildBattleLogUI(){
+  const host = sections.memo; if(!host) return;
+  const wrap = document.createElement('div');
+  wrap.className='card';
+  wrap.innerHTML = `
+    <h3>対戦ログ</h3>
+    <div class="grid grid-2">
+      <div>
+        <div class="row"><label>日時</label><input id="bl_time" class="small"></div>
+        <div class="row"><label>相手</label><input id="bl_opponent" class="small" placeholder="相手名/トレーナー名"></div>
+        <div class="row"><label>ルール</label>
+          <select id="bl_rule" class="small">
+            <option value="シングル">シングル</option>
+            <option value="ダブル">ダブル</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div class="row"><label>シーズン</label><input id="bl_season" class="small" type="number" placeholder="例: 33"></div>
+        <div class="row"><label>結果</label>
+          <select id="bl_result" class="small">
+            <option value="勝ち">勝ち</option>
+            <option value="負け">負け</option>
+            <option value="引き分け">引き分け</option>
+          </select>
+        </div>
+        <div class="row"><label>スコア</label><input id="bl_score" class="small" placeholder="例: 3-0"></div>
+        <div class="row"><label>ターン数</label><input id="bl_turns" class="small" type="number" placeholder="例: 17"></div>
+        <div class="row"><label>レート 前→後</label>
+          <div class="flex">
+            <input id="bl_rate_before" type="number" class="small" placeholder="前">
+            <input id="bl_rate_after"  type="number" class="small" placeholder="後">
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="row"><label>自分のパーティ（スロット）</label>
+          <select id="bl_my_slot" class="small"></select>
+        </div>
+        <div class="row"><label>相手の6体（改行/カンマ区切り）</label>
+          <textarea id="bl_opp_team" rows="4" class="small" placeholder="例：ミライドン, ホウオウ, ディンルー, ..."></textarea>
+        </div>
+        <div class="row"><label>メモ</label>
+          <textarea id="bl_notes" rows="4" class="small" placeholder="試合の要点/反省点など"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="flex" style="gap:8px;margin-top:8px">
+      <button id="bl_save"  class="btn">保存</button>
+      <button id="bl_clear" class="btn btn-ghost">フォームクリア</button>
+      <button id="bl_export" class="btn btn-ghost">全件エクスポート</button>
+      <button id="bl_import" class="btn btn-ghost">インポート</button>
+    </div>
+    <hr>
+    <div class="row"><label>フィルタ</label>
+      <input id="bl_filter" class="small" placeholder="相手名/結果/シーズン など部分一致">
+    </div>
+    <div id="bl_list"></div>
+  `;
+  host.prepend(wrap);
+
+  // 初期値
+  document.getElementById('bl_time').value = ymdhm();
+  // パーティスロット
+  refreshBLSlot();
+
+  // ハンドラ
+  document.getElementById('bl_save').onclick = saveBattleFromForm;
+  document.getElementById('bl_clear').onclick = clearBattleForm;
+  document.getElementById('bl_export').onclick = ()=> downloadFile('battle_logs.json', JSON.stringify(loadBattles(),null,2));
+  document.getElementById('bl_import').onclick = ()=>{
+    const fi=document.createElement('input'); fi.type='file'; fi.accept='.json,application/json';
+    fi.onchange=async ()=>{ const f=fi.files[0]; if(!f) return; const txt=await f.text(); try{ const arr=JSON.parse(txt); if(!Array.isArray(arr)) return alert('配列JSONが必要です'); saveBattles(arr); renderBattleList(); alert('読込完了'); }catch(e){ alert('JSON読込エラー: '+e.message); } };
+    fi.click();
+  };
+  document.getElementById('bl_filter').addEventListener('input', renderBattleList);
+
+  renderBattleList();
+}
+function refreshBLSlot(){
+  const sel = document.getElementById('bl_my_slot'); if(!sel) return;
+  sel.innerHTML='';
+  const names = getPartySlotsNames();
+  const defOpt = document.createElement('option'); defOpt.value=''; defOpt.textContent='（未指定）'; sel.appendChild(defOpt);
+  names.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
+  // 直近の選択を既定に
+  const last=localStorage.getItem('pokeapp_party_last'); if(last && names.includes(last)) sel.value=last;
+}
+function readOppTeamTextarea(){
+  const raw = (document.getElementById('bl_opp_team').value||'').trim();
+  if(!raw) return [];
+  return raw.split(/\r?\n|,/).map(s=>s.trim()).filter(Boolean);
+}
+function clearBattleForm(){
+  set('bl_time', ymdhm());
+  set('bl_opponent',''); set('bl_rule','シングル'); set('bl_season','');
+  set('bl_result','勝ち'); set('bl_score',''); set('bl_turns',''); set('bl_rate_before',''); set('bl_rate_after','');
+  set('bl_opp_team',''); set('bl_notes',''); refreshBLSlot();
+  delete window.__BL_EDITING__;
+}
+function saveBattleFromForm(){
+  const entry = {
+    id: window.__BL_EDITING__?.id || crypto.randomUUID?.() || ('b_'+Date.now()),
+    ts: nowIso(),
+    time: document.getElementById('bl_time').value || ymdhm(),
+    opponent: document.getElementById('bl_opponent').value||'',
+    rule: document.getElementById('bl_rule').value||'',
+    season: Number(document.getElementById('bl_season').value)||null,
+    result: document.getElementById('bl_result').value||'',
+    score: document.getElementById('bl_score').value||'',
+    turns: Number(document.getElementById('bl_turns').value)||null,
+    rate_before: Number(document.getElementById('bl_rate_before').value)||null,
+    rate_after:  Number(document.getElementById('bl_rate_after').value)||null,
+    my_slot: document.getElementById('bl_my_slot').value||'',
+    opp_team: readOppTeamTextarea(),
+    notes: document.getElementById('bl_notes').value||''
+  };
+  const arr = loadBattles();
+  const idx = arr.findIndex(x=>x.id===entry.id);
+  if(idx>=0) arr[idx]=entry; else arr.unshift(entry);
+  saveBattles(arr);
+  renderBattleList();
+  alert(idx>=0?'更新しました':'保存しました');
+  clearBattleForm();
+}
+function renderBattleList(){
+  const box = document.getElementById('bl_list'); if(!box) return;
+  const q=(document.getElementById('bl_filter').value||'').toLowerCase().trim();
+  const arr = loadBattles();
+  const src = !q ? arr : arr.filter(e=>{
+    const hay = `${e.time} ${e.opponent} ${e.rule} S${e.season||''} ${e.result} ${e.score} ${e.my_slot} ${(e.opp_team||[]).join(' ')}`.toLowerCase();
+    return hay.includes(q);
+  });
+  box.innerHTML='';
+  if(!src.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='対戦ログはありません。'; box.appendChild(d); return; }
+  src.forEach(e=>{
+    const c=document.createElement('div'); c.className='card small';
+    c.innerHTML=`
+      <div class="flex" style="gap:6px;align-items:center;flex-wrap:wrap">
+        <span class="pill">${e.time}</span>
+        <span class="pill">${e.rule}${e.season?` / S${e.season}`:''}</span>
+        <span class="pill">${e.result}${e.score?` (${e.score})`:''}</span>
+        ${e.my_slot?`<span class="pill">自分:${e.my_slot}</span>`:''}
+        ${e.opponent?`<strong>${e.opponent}</strong>`:''}
+      </div>
+      ${e.opp_team?.length?`<div class="small muted" style="margin-top:4px">相手: ${e.opp_team.join(', ')}</div>`:''}
+      ${e.notes?`<div class="small" style="margin-top:4px;white-space:pre-wrap">${e.notes}</div>`:''}
+      ${(Number.isFinite(e.rate_before)||Number.isFinite(e.rate_after))?`<div class="small muted" style="margin-top:4px">Rate: ${e.rate_before??'-'} → ${e.rate_after??'-'}</div>`:''}
+      <div class="flex" style="gap:6px;margin-top:6px">
+        <button class="btn btn-ghost small" data-act="edit">編集</button>
+        <button class="btn btn-ghost small" data-act="del">削除</button>
+        <button class="btn btn-ghost small" data-act="copy">コピー</button>
+      </div>
+    `;
+    // 操作
+    c.querySelector('[data-act="edit"]').onclick=()=>{
+      window.__BL_EDITING__ = e;
+      set('bl_time', e.time||ymdhm());
+      set('bl_opponent', e.opponent||''); set('bl_rule', e.rule||'シングル'); set('bl_season', e.season??'');
+      set('bl_result', e.result||'勝ち'); set('bl_score', e.score||''); set('bl_turns', e.turns??'');
+      set('bl_rate_before', e.rate_before??''); set('bl_rate_after', e.rate_after??'');
+      refreshBLSlot(); set('bl_my_slot', e.my_slot||'');
+      set('bl_opp_team', (e.opp_team||[]).join(', ')); set('bl_notes', e.notes||'');
+      window.scrollTo({top:0, behavior:'smooth'});
+    };
+    c.querySelector('[data-act="del"]').onclick=()=>{
+      if(!confirm('この対戦ログを削除しますか？')) return;
+      const arr=loadBattles().filter(x=>x.id!==e.id); saveBattles(arr); renderBattleList();
+    };
+    c.querySelector('[data-act="copy"]').onclick=()=>{
+      const lines=[
+        `日時: ${e.time}`, `相手: ${e.opponent||'-'}`, `ルール: ${e.rule}${e.season?` / S${e.season}`:''}`,
+        `結果: ${e.result}${e.score?` (${e.score})`:''}`, `ターン: ${e.turns??'-'}`,
+        `レート: ${(e.rate_before??'-')} → ${(e.rate_after??'-')}`, `自分PT: ${e.my_slot||'-'}`,
+        `相手PT: ${(e.opp_team||[]).join(', ')||'-'}`, `メモ:\n${e.notes||''}`
+      ];
+      navigator.clipboard?.writeText(lines.join('\n'));
+      alert('クリップボードにコピーしました');
+    };
+    box.appendChild(c);
+  });
+}
+buildBattleLogUI();
 
 /* =========================
    タイマー
@@ -676,7 +988,7 @@ document.getElementById('timerStart')?.addEventListener('click',()=>{
 document.getElementById('timerStop')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; set('timerState','停止中'); updateTimerBadge(); } });
 document.getElementById('timerReset')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; } set('timerRemain','00:00'); set('timerState','停止中'); updateTimerBadge(); });
 updateTimerBadge();
-const bL=document.getElementById('badgeLog'); if(bL) bL.textContent='ログ: 0件';
+const bL=document.getElementById('badgeLog'); if(bL) bL.textContent='計算ログ: 0件';
 
 /* =========================
    Service Worker 登録
