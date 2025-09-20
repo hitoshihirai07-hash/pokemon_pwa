@@ -7,7 +7,7 @@ const ASSETS = [
   './js/app.js',
   './manifest.json',
   './pokemon_master.json'
-  // 画像フォルダを使うなら: './imgs/...'
+  './manifest.webmanifest'
 ];
 
 self.addEventListener('install', (e) => {
@@ -35,6 +35,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
   }
 });
+
 
 
 
