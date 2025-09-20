@@ -1,10 +1,9 @@
 <!doctype html>
-
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ポケモン計算ツール（構築データ対応 完全版）</title>
+<title>構築データ取り込み（完全版・単一HTML）</title>
 <style>
   :root{--brand:#0b74de;--bg:#f6f7fb;--card:#fff;--muted:#666}
   *{box-sizing:border-box}
@@ -21,8 +20,7 @@
   label{font-size:.95em}
   input[type="number"],input[type="text"],select,textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:10px}
   textarea{min-height:120px}
-  .row{display:grid;grid-template-columns:160px 1fr;gap:10px;align-items:center;margin:8px 0}
-  .row3{display:grid;grid-template-columns:160px 1fr 1fr;gap:10px;align-items:center;margin:8px 0}
+  .row{display:grid;grid-template-columns:180px 1fr;gap:10px;align-items:center;margin:8px 0}
   .btn{border:0;border-radius:10px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
   .btn:disabled{opacity:.6;cursor:not-allowed}
   .btn-ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
@@ -41,41 +39,63 @@
   @media(min-width:980px){.party-grid{grid-template-columns:1fr 1fr}}
   .slot-h{display:flex;gap:8px;align-items:center;margin-bottom:8px}
   .slot-h small{color:var(--muted)}
+  .diagnostics pre{background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;overflow:auto;max-height:240px}
+  .banner{background:#fff3cd;color:#5c4600;border:1px solid #ffe08a;padding:8px 12px;border-radius:8px;margin:8px 0}
 </style>
 </head>
 <body>
 <header>
-  <div>ポケモン計算ツール（構築データ対応 完全版）</div>
+  <div>構築データ取り込み（完全版・単一HTML）</div>
   <div class="tight">
     <span class="pill" id="countBadge">0 件</span>
   </div>
-</header><main>
+</header>
+
+<main>
   <div class="tabs">
     <button class="tab active" data-tab="teams" type="button">構築データ</button>
     <button class="tab" data-tab="party" type="button">パーティ</button>
     <button class="tab" data-tab="memo" type="button">メモ</button>
-  </div>  <!-- === 構築データ === -->  <section id="tab-teams">
+  </div>
+
+  <!-- === 構築データ === -->
+  <section id="tab-teams">
     <div class="card">
-      <h2>構築データの読み込み（JSON / CSV / TSV 自動対応）</h2>
+      <h2>読み込み（JSON / CSV / TSV 自動対応）</h2>
       <div class="row"><label>ファイル選択</label><input id="fileInput" type="file" accept=".json,.csv,.tsv,.txt" /></div>
-      <div class="row"><label>貼り付け（任意）</label><textarea id="pasteBox" placeholder='ここへJSONやCSV/TSVを貼り付け → 「読み込む」'></textarea></div>
+      <div class="row"><label>貼り付け（JSONやCSV/TSV）</label><textarea id="pasteBox" placeholder='ここへ貼り付け → 「読み込む」'></textarea></div>
       <div class="tight" style="margin-top:8px">
         <button class="btn" id="loadBtn">読み込む</button>
+        <button class="btn btn-ghost" id="demoBtn">デモ読み込み</button>
         <button class="btn btn-ghost" id="clearBtn">クリア</button>
+        <button class="btn btn-ghost" id="diagBtn">診断を表示/非表示</button>
         <span id="loadInfo" class="muted">未読込</span>
       </div>
-    </div><div class="card" style="margin-top:12px">
-  <div class="teams-top">
-    <h3 style="margin:0">一覧</h3>
-    <input id="filterBox" type="text" placeholder="フィルタ（名前/持ち物/テラ/シーズン/ルール/順位 など）」 style="max-width:360px" />
-    <span class="muted" id="filterCount">0 / 0</span>
-  </div>
-  <div id="teamsList" class="team-grid" style="margin-top:10px"></div>
-</div>
+      <div class="banner" id="hint" style="display:none"></div>
+    </div>
 
-  </section>  <!-- === パーティ === -->  <section id="tab-party" class="hidden">
+    <div class="card diagnostics hidden" id="diagBox">
+      <h3>診断</h3>
+      <div class="row"><label>モード</label><div id="diagMode" class="pill">-</div></div>
+      <div class="row"><label>行数/レコード</label><div id="diagCount" class="muted">-</div></div>
+      <div class="row"><label>JSONエラー</label><div id="diagErr" class="muted">(なし)</div></div>
+      <pre id="diagHead"></pre>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="teams-top">
+        <h3 style="margin:0">一覧</h3>
+        <input id="filterBox" type="text" placeholder="フィルタ（名前/持ち物/テラ/シーズン/ルール/順位/レート）」 style="max-width:420px" />
+        <span class="muted" id="filterCount">0 / 0</span>
+      </div>
+      <div id="teamsList" class="team-grid" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- === パーティ === -->
+  <section id="tab-party" class="hidden">
     <div class="card">
-      <h2>パーティ（構築データから反映可）</h2>
+      <h2>パーティ（構築から反映可）</h2>
       <div class="party-grid" id="partyGrid"></div>
       <div class="tight" style="margin-top:8px">
         <button class="btn" id="copyPartyJSON">JSONコピー</button>
@@ -83,392 +103,336 @@
       </div>
       <div class="row"><label>JSON</label><textarea id="partyJSON" readonly></textarea></div>
     </div>
-  </section>  <!-- === メモ === -->  <section id="tab-memo" class="hidden">
+  </section>
+
+  <!-- === メモ === -->
+  <section id="tab-memo" class="hidden">
     <div class="card">
       <h2>対戦メモ</h2>
       <textarea id="memoBox" placeholder="自由記入"></textarea>
     </div>
   </section>
-</main><script>
-// =====================
-// タブ切り替え
-// =====================
+</main>
+
+<script>
+// ===== タブ =====
 const tabs = document.querySelectorAll('.tab');
-const sections = {
-  teams: document.getElementById('tab-teams'),
-  party: document.getElementById('tab-party'),
-  memo:  document.getElementById('tab-memo'),
-};
-
-tabs.forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    tabs.forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    Object.values(sections).forEach(sec=>sec.classList.add('hidden'));
-    sections[btn.dataset.tab].classList.remove('hidden');
+const sections = { teams: document.getElementById('tab-teams'), party: document.getElementById('tab-party'), memo: document.getElementById('tab-memo') };
+for (const b of tabs){
+  b.addEventListener('click',()=>{
+    tabs.forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    Object.values(sections).forEach(s=>s.classList.add('hidden'));
+    sections[b.dataset.tab].classList.remove('hidden');
   });
-});
+}
 
-// =====================
-// 構築データ: 取込・正規化
-// =====================
-let ALL_TEAMS = []; // { meta:{season,rule,rank,rating}, members:[{name,item,tera}×6] }
-
+// ===== 状態 =====
+let ALL_TEAMS = [];
 function setTeams(arr){
-  ALL_TEAMS = Array.isArray(arr) ? arr : [];
+  ALL_TEAMS = Array.isArray(arr)?arr:[];
   document.getElementById('countBadge').textContent = `${ALL_TEAMS.length} 件`;
   renderTeamsList();
 }
 
-// 区切り文字を自動判定（, / \t / ;）＋ダブルクォート対応
+// ===== CSV/TSV parser =====
 function parseCSV(text){
   if (!text || !text.trim()) return [];
-  text = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  text = text.replace(/\uFEFF/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
   const sample = text.split('\n').slice(0,5).join('\n');
-  const score = (ch)=> (sample.match(new RegExp('\\' + ch,'g'))||[]).length;
-  let delim = ',';
-  const cand = [{c:'\t',s:score('\t')},{c:';',s:score(';')},{c:',',s:score(',')}].sort((a,b)=>b.s-a.s);
-  if (cand[0].s>0) delim = cand[0].c;
-
-  const rows = [];
-  let cur = '', inQ = false, line = [], i = 0;
-  const pushCell = ()=>{ line.push(cur); cur=''; };
-  const pushLine = ()=>{ rows.push(line); line=[]; };
-  const s = text + '\n';
-  while (i < s.length){
-    const ch = s[i];
-    if (inQ){
-      if (ch === '"'){
-        if (s[i+1] === '"'){ cur+='"'; i+=2; continue; }
-        inQ = false; i++; continue;
-      } else { cur += ch; i++; continue; }
+  const score = (ch)=> (sample.match(new RegExp('\\'+ch,'g'))||[]).length;
+  let delim = ','; const cand=[{c:'\t',s:score('\t')},{c:';',s:score(';')},{c:',',s:score(',')}].sort((a,b)=>b.s-a.s); if (cand[0].s>0) delim=cand[0].c;
+  const rows=[]; let cur='',inQ=false,line=[],i=0; const pushCell=()=>{line.push(cur);cur='';}; const pushLine=()=>{rows.push(line);line=[];}; const s=text+'\n';
+  while(i<s.length){
+    const ch=s[i];
+    if(inQ){
+      if(ch==='"'){ if(s[i+1]==='"'){cur+='"'; i+=2; continue;} inQ=false; i++; continue; }
+      cur+=ch; i++; continue;
     } else {
-      if (ch === '"'){ inQ = true; i++; continue; }
-      if (ch === delim){ pushCell(); i++; continue; }
-      if (ch === '\n'){ pushCell(); pushLine(); i++; continue; }
-      cur += ch; i++;
+      if(ch==='"'){inQ=true; i++; continue;}
+      if(ch===delim){pushCell(); i++; continue;}
+      if(ch=== '\n'){pushCell(); pushLine(); i++; continue;}
+      cur+=ch; i++;
     }
   }
-  if (rows.length === 0) return [];
+  if (!rows.length) return [];
   const headers = rows[0].map(h=>h?.trim?.()||'');
-  const out = [];
-  for (let r=1;r<rows.length;r++){
-    if (!rows[r] || rows[r].length===0) continue;
-    const obj = {};
-    headers.forEach((h,idx)=> obj[h] = rows[r][idx] ?? '');
-    if (Object.values(obj).every(v => (v==null || String(v).trim()===''))) continue;
+  const out=[];
+  for(let r=1;r<rows.length;r++){
+    if(!rows[r]||rows[r].length===0) continue;
+    const obj={}; headers.forEach((h,idx)=> obj[h]=rows[r][idx]??'');
+    if(Object.values(obj).every(v=>String(v??'').trim()==='')) continue;
     out.push(obj);
   }
   return out;
 }
 
-// sv.pokedb.tokyo 形式の JSON を内部形式へ
+// ===== JSON (sv.pokedb.tokyo) → 内部形式 =====
 function normalizeFromPKDB(json){
   if (!json || !Array.isArray(json.teams)) return [];
-  const season = json.season ?? '';
-  const rule   = json.rule   ?? '';
-  const out = [];
+  const season=json.season??''; const rule=json.rule??''; const out=[];
   for (const t of json.teams){
-    const members = (t.team || []).slice(0,6).map(m => {
-      const name = m.form ? `${m.pokemon}（${m.form}）` : (m.pokemon || '');
-      return { name, item: m.item || '', tera: m.terastal || '' };
-    });
-    if (members.length){
-      out.push({ meta:{season,rule,rank:(t.rank??''),rating:(t.rating_value??'')}, members });
+    const members=(t.team||[]).slice(0,6).map(m=>({
+      name: m.form?`${m.pokemon}（${m.form}）`:(m.pokemon||''),
+      item: m.item||'',
+      tera: m.terastal||''
+    }));
+    if(members.length){
+      out.push({ meta:{season,rule,rank:(t.rank??''),rating:(t.rating_value??'')}, members});
     }
   }
   return out;
 }
 
-// CSV等の曖昧な列名を吸収して name1..6 / item1..6 / tera1..6 を抽出
+// ===== CSV系 → 内部形式 =====
 function normalizeTeams(rows){
   if (!rows || !rows.length) return [];
-
-  // A) すでに members を持つ JSONライク
-  const outA = [];
-  for (const r of rows){
-    if (Array.isArray(r.members) && r.members.length){
+  // すでに members を持つ JSONライク
+  const outA=[];
+  for(const r of rows){
+    if(Array.isArray(r.members)&&r.members.length){
       outA.push({ meta:{season:r.season||r.シーズン||'', rule:r.rule||r.ルール||'', rank:r.rank||r.順位||r.rating||r.レート||''}, members:r.members });
     }
   }
-  if (outA.length) return outA;
+  if(outA.length) return outA;
 
-  // 正規化ヘルパ
-  const norm = s => String(s||'').trim().toLowerCase()
-    .replace(/\s+/g,'')
-    .replace(/[（）()]/g,'')
-    .replace(/ポケモン|pokemon|poke/g,'name')
-    .replace(/名前/g,'name')
-    .replace(/もちもの|持ち物|item/g,'item')
-    .replace(/テラタイプ|テラ|tera/g,'tera');
+  const norm=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,'').replace(/[（）()]/g,'').replace(/ポケモン|pokemon|poke/g,'name').replace(/名前/g,'name').replace(/もちもの|持ち物|item/g,'item').replace(/テラタイプ|テラ|tera/g,'tera');
 
-  // B) 1行に6匹
-  const packs = [];
-  const tryRow = (r)=>{
-    const keys = Object.keys(r);
-    const map = {}; // idx -> {name,item,tera}
-    for (const k of keys){
-      const nk = norm(k);
-      const m = nk.match(/(name|item|tera)(\d{1,2})$/);
-      if (!m) continue;
-      const kind = m[1];
-      const idx  = parseInt(m[2],10);
-      if (idx<1 || idx>6) continue;
-      map[idx] = map[idx] || {name:'',item:'',tera:''};
-      map[idx][kind] = (r[k]??'').toString().trim();
+  // 1行に6匹
+  const packs=[]; const tryRow=r=>{
+    const keys=Object.keys(r); const map={};
+    for(const k of keys){
+      const nk=norm(k); const m=nk.match(/(name|item|tera)(\d{1,2})$/);
+      if(!m) continue; const kind=m[1]; const idx=parseInt(m[2],10);
+      if(idx<1||idx>6) continue; (map[idx]||(map[idx]={name:'',item:'',tera:''}))[kind]=(r[k]??'').toString().trim();
     }
-    const members = [];
-    for (let i=1;i<=6;i++){
-      if (!map[i] || !map[i].name) continue;
-      members.push(map[i]);
-    }
-    if (members.length){
-      return { meta:{season:r.season||r.シーズン||'', rule:r.rule||r.ルール||'', rank:r.rank||r.順位||r.rating||r.レート||''}, members };
-    }
+    const members=[]; for(let i=1;i<=6;i++){ if(!map[i]||!map[i].name) continue; members.push(map[i]); }
+    if(members.length){ return { meta:{season:r.season||r.シーズン||'', rule:r.rule||r.ルール||'', rank:r.rank||r.順位||r.rating||r.レート||''}, members }; }
     return null;
   };
-  for (const r of rows){
-    const t = tryRow(r); if (t) packs.push(t);
-  }
-  if (packs.length) return packs;
+  for(const r of rows){ const t=tryRow(r); if(t) packs.push(t); }
+  if(packs.length) return packs;
 
-  // C) 6行=1チーム（team_id 等でグループ化）
-  const guessIdKey = ()=>{
-    const freq = {};
-    for (const r of rows){
-      for (const k of Object.keys(r)){
-        const nk = norm(k);
-        if (/(team|チーム)id$/.test(nk) || /(グループ|id)$/.test(nk)) freq[k]=(freq[k]||0)+1;
-      }
-    }
-    const k = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0];
-    return k || null;
-  };
-  const idKey = guessIdKey();
-  if (idKey){
-    const groups = {};
-    for (const r of rows){
-      const id = (r[idKey] ?? '').toString();
-      if (!id) continue;
-      (groups[id]||(groups[id]=[])).push(r);
-    }
-    const out = [];
-    for (const id of Object.keys(groups)){
-      const g = groups[id];
-      const mem = [];
-      for (const r of g){
-        const keys = Object.keys(r);
-        const pickCol = (want)=>{
-          const pri = want==='name'
-            ? [/^(名前|ポケモン|name|pokemon|poke)$/i]
-            : want==='item'
-            ? [/^(持ち物|item|もちもの)$/i]
-            : [/^(テラタイプ|テラ|tera)$/i];
-          for (const p of pri){ const hit = keys.find(k=> p.test(k)); if (hit) return (r[hit]??'').toString().trim(); }
-          for (const k of keys){ const nk=norm(k); if (want==='name'&&nk==='name') return (r[k]??'').toString().trim(); if (want==='item'&&nk==='item') return (r[k]??'').toString().trim(); if (want==='tera'&&nk==='tera') return (r[k]??'').toString().trim(); }
+  // 6行=1チーム（team_id 等）
+  const guessIdKey=()=>{ const freq={}; for(const r of rows){ for(const k of Object.keys(r)){ const nk=norm(k); if(/(team|チーム)id$/.test(nk)||/(グループ|id)$/.test(nk)) freq[k]=(freq[k]||0)+1; } } const k=Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0]; return k||null; };
+  const idKey=guessIdKey(); if(idKey){
+    const groups={}; for(const r of rows){ const id=(r[idKey]??'').toString(); if(!id) continue; (groups[id]||(groups[id]=[])).push(r); }
+    const out=[]; for(const id of Object.keys(groups)){
+      const g=groups[id]; const mem=[];
+      for(const r of g){
+        const keys=Object.keys(r);
+        const pick=w=>{
+          const pri=w==='name'?[/^(名前|ポケモン|name|pokemon|poke)$/i]: w==='item'?[/^(持ち物|item|もちもの)$/i]:[/^(テラタイプ|テラ|tera)$/i];
+          for(const p of pri){ const hit=keys.find(k=>p.test(k)); if(hit) return (r[hit]??'').toString().trim(); }
+          for(const k of keys){ const nk=norm(k); if(w==='name'&&nk==='name') return (r[k]??'').toString().trim(); if(w==='item'&&nk==='item') return (r[k]??'').toString().trim(); if(w==='tera'&&nk==='tera') return (r[k]??'').toString().trim(); }
           return '';
         };
-        const name = pickCol('name'); if (!name) continue;
-        mem.push({name, item:pickCol('item'), tera:pickCol('tera')});
-        if (mem.length>=6) break;
+        const name=pick('name'); if(!name) continue;
+        mem.push({name, item:pick('item'), tera:pick('tera')});
+        if(mem.length>=6) break;
       }
-      if (mem.length){ out.push({ meta:{season:'',rule:'',rank:''}, members:mem }); }
+      if(mem.length){ out.push({ meta:{season:'',rule:'',rank:''}, members:mem }); }
     }
-    if (out.length) return out;
+    if(out.length) return out;
   }
   return [];
 }
+
+// ===== UI: 読み込み =====
+const loadBtn = document.getElementById('loadBtn');
+const demoBtn = document.getElementById('demoBtn');
+const clearBtn= document.getElementById('clearBtn');
+const diagBtn = document.getElementById('diagBtn');
+const diagBox = document.getElementById('diagBox');
+const hintBox = document.getElementById('hint');
+
+function showDiag({mode='-', rows=0, err='', head=''}){
+  document.getElementById('diagMode').textContent = mode;
+  document.getElementById('diagCount').textContent = String(rows);
+  document.getElementById('diagErr').textContent = err||'(なし)';
+  document.getElementById('diagHead').textContent = head;
+}
+
+diagBtn.addEventListener('click', ()=>{ diagBox.classList.toggle('hidden'); });
 
 async function handleLoad(){
   const file = document.getElementById('fileInput').files[0];
   const pasted = document.getElementById('pasteBox').value.trim();
   const info = document.getElementById('loadInfo');
+  let txt=''; if(file){ txt=await file.text(); } else if(pasted){ txt=pasted; } else { info.textContent='入力がありません'; return; }
 
-  let txt = '';
-  if (file){ txt = await file.text(); }
-  else if (pasted){ txt = pasted; }
-  else { info.textContent = '入力がありません'; return; }
+  const head = txt.slice(0,400);
+  let teams=[]; let mode=''; let jsonErr=''; let rowsCount=0;
 
   // JSON優先
-  let teams = [];
-  try {
+  try{
     const json = JSON.parse(txt);
+    mode='JSON';
     if (json && json.teams){
-      teams = normalizeFromPKDB(json);
+      teams=normalizeFromPKDB(json);
     } else {
-      // 配列JSONなど別構造のときは rows と見なして normalizeTeams
-      const asRows = Array.isArray(json) ? json : (Array.isArray(json.rows) ? json.rows : null);
-      if (asRows) teams = normalizeTeams(asRows);
+      const asRows = Array.isArray(json)?json:(Array.isArray(json.rows)?json.rows:null);
+      if(asRows){ teams=normalizeTeams(asRows); rowsCount=asRows.length; }
     }
-  } catch(e){ /* JSONでなければCSV/TSVへ */ }
+  }catch(e){ jsonErr=String(e.message||e); }
 
   if (!teams.length){
-    const rows = parseCSV(txt);
-    teams = normalizeTeams(rows);
+    // CSV/TSVへフォールバック
+    const rows = parseCSV(txt); rowsCount=rows.length; mode = mode||'CSV/TSV'; teams=normalizeTeams(rows);
   }
 
+  const filtered = document.getElementById('filterBox').value.trim();
+  if (filtered) document.getElementById('filterBox').value='';
+
+  showDiag({mode, rows: rowsCount||teams.length, err: jsonErr, head});
+
   if (!teams.length){
-    info.textContent = '0件：形式を確認してください（JSONの波括弧やCSV区切りなど）';
+    info.textContent = '0件：形式やJSONの閉じ忘れ等をご確認ください';
+    hintBox.style.display='block';
+    hintBox.textContent = 'ヒント: JSONは { "season":.., "rule":"..", "teams":[ { "team":[ { "pokemon":"..", "form":"..", "terastal":"..", "item":".." }×最大6 ] }×N ] } の構造です。';
   } else {
     info.textContent = `読み込み成功：${teams.length}件`;
+    hintBox.style.display='none';
   }
   setTeams(teams);
 }
 
 function clearLoad(){
-  document.getElementById('fileInput').value = '';
-  document.getElementById('pasteBox').value = '';
-  document.getElementById('loadInfo').textContent = '未読込';
+  document.getElementById('fileInput').value='';
+  document.getElementById('pasteBox').value='';
+  document.getElementById('loadInfo').textContent='未読込';
+  document.getElementById('filterBox').value='';
+  hintBox.style.display='none';
+  showDiag({mode:'-',rows:0,err:'',head:''});
   setTeams([]);
 }
 
-document.getElementById('loadBtn').addEventListener('click', handleLoad);
+loadBtn.addEventListener('click', handleLoad);
+clearBtn.addEventListener('click', clearLoad);
 
-document.getElementById('clearBtn').addEventListener('click', clearLoad);
+demoBtn.addEventListener('click', ()=>{
+  const demo = {
+    season: 33, rule: "シングル",
+    teams: [
+      { rank: 1, rating_value: 2180.889, team: [
+        {pokemon:"ドドゲザン", form:"", type1:"あく", type2:"はがね", terastal:"ほのお", item:"ラムのみ"},
+        {pokemon:"マタドガス", form:"ガラルのすがた", type1:"どく", type2:"フェアリー", terastal:"ノーマル", item:"くろいヘドロ"},
+        {pokemon:"キラフロル", form:"", type1:"いわ", type2:"どく", terastal:"ノーマル", item:"きあいのタスキ"},
+        {pokemon:"ディンルー", form:"", type1:"あく", type2:"じめん", terastal:"はがね", item:"オボンのみ"},
+        {pokemon:"ルギア", form:"", type1:"エスパー", type2:"ひこう", terastal:"ノーマル", item:"たべのこし"},
+        {pokemon:"コライドン", form:"", type1:"かくとう", type2:"ドラゴン", terastal:"ほのお", item:"こだわりスカーフ"},
+      ]},
+      { rank: 2, rating_value: 2177.16, team: [
+        {pokemon:"ミライドン", form:"", type1:"でんき", type2:"ドラゴン", terastal:"フェアリー", item:"こだわりメガネ"},
+        {pokemon:"ホウオウ", form:"", type1:"ほのお", type2:"ひこう", terastal:"ノーマル", item:"あつぞこブーツ"},
+        {pokemon:"テツノワダチ", form:"", type1:"じめん", type2:"はがね", terastal:"ノーマル", item:"こだわりハチマキ"},
+        {pokemon:"ディンルー", form:"", type1:"あく", type2:"じめん", terastal:"フェアリー", item:"たべのこし"},
+        {pokemon:"パオジアン", form:"", type1:"あく", type2:"こおり", terastal:"あく", item:"きあいのタスキ"},
+        {pokemon:"ブリジュラス", form:"", type1:"はがね", type2:"ドラゴン", terastal:"フェアリー", item:"オボンのみ"},
+      ]}
+    ]
+  };
+  const teams = normalizeFromPKDB(demo);
+  setTeams(teams);
+  document.getElementById('loadInfo').textContent = `デモ読込：${teams.length}件`;
+  showDiag({mode:'JSON(デモ)', rows:teams.length, err:'', head: JSON.stringify(demo).slice(0,400)});
+});
 
-// =====================
-// 構築データ: 表示・検索
-// =====================
+// ===== 表示 =====
 function renderTeamsList(){
-  const box = document.getElementById('teamsList');
-  const f = (document.getElementById('filterBox').value||'').trim().toLowerCase();
-  box.innerHTML = '';
-  const src = !f ? ALL_TEAMS : ALL_TEAMS.filter(t => {
-    const inMeta = `${t.meta.season} ${t.meta.rule} ${t.meta.rank} ${t.meta.rating}`.toLowerCase();
-    const inMembers = t.members.map(m=>`${m.name} ${m.item} ${m.tera}`.toLowerCase()).join(' ');
-    return inMeta.includes(f) || inMembers.includes(f);
+  const box=document.getElementById('teamsList');
+  const f=(document.getElementById('filterBox').value||'').trim().toLowerCase();
+  box.innerHTML='';
+  const src=!f?ALL_TEAMS:ALL_TEAMS.filter(t=>{
+    const inMeta=`${t.meta.season} ${t.meta.rule} ${t.meta.rank} ${t.meta.rating}`.toLowerCase();
+    const inMembers=t.members.map(m=>`${m.name} ${m.item} ${m.tera}`.toLowerCase()).join(' ');
+    return inMeta.includes(f)||inMembers.includes(f);
   });
   document.getElementById('filterCount').textContent = `${src.length} / ${ALL_TEAMS.length}`;
-
-  if (!src.length){
-    const div = document.createElement('div');
-    div.className = 'muted';
-    div.textContent = '0件です。フィルタやデータ形式をご確認ください。';
-    box.appendChild(div);
-    return;
+  if(!src.length){
+    const d=document.createElement('div'); d.className='muted';
+    d.textContent='0件です。フィルタやデータ形式をご確認ください。';
+    box.appendChild(d); return;
   }
-
-  for (const t of src){
-    const card = document.createElement('div');
-    card.className = 'team-card';
-
-    const head = document.createElement('div');
-    head.className = 'tight';
-    head.innerHTML = `<span class="pill">S${t.meta.season||'?'} / ${t.meta.rule||''}</span>`+
-                     (t.meta.rank?`<span class="pill">順位: ${t.meta.rank}</span>`:'')+
-                     (t.meta.rating?`<span class="pill">レート: ${t.meta.rating}</span>`:'');
+  for(const t of src){
+    const card=document.createElement('div'); card.className='team-card';
+    const head=document.createElement('div'); head.className='tight';
+    head.innerHTML=`<span class="pill">S${t.meta.season||'?'} / ${t.meta.rule||''}</span>`
+                  +(t.meta.rank?`<span class="pill">順位: ${t.meta.rank}</span>`:'')
+                  +(t.meta.rating?`<span class="pill">レート: ${t.meta.rating}</span>`:'');
     card.appendChild(head);
-
-    const mons = document.createElement('div');
-    mons.className = 'mons';
-    t.members.forEach((m, idx) => {
-      const d = document.createElement('div');
-      d.className = 'mon';
-      d.innerHTML = `<div style="font-weight:700">${idx+1}. ${escapeHtml(m.name||'-')}</div>`+
-                    `<div class="muted">${escapeHtml(m.item||'')}</div>`+
-                    `<div class="muted">テラ: ${escapeHtml(m.tera||'')}</div>`;
+    const mons=document.createElement('div'); mons.className='mons';
+    t.members.forEach((m,i)=>{
+      const d=document.createElement('div'); d.className='mon';
+      d.innerHTML = `<div style="font-weight:700">${i+1}. ${escapeHtml(m.name||'-')}</div>`
+                  + `<div class="muted">${escapeHtml(m.item||'')}</div>`
+                  + `<div class="muted">テラ: ${escapeHtml(m.tera||'')}</div>`;
       mons.appendChild(d);
     });
     card.appendChild(mons);
-
-    const btns = document.createElement('div');
-    btns.className = 'tight';
-    btns.style.marginTop = '8px';
-    const apply = document.createElement('button');
-    apply.className = 'btn';
-    apply.textContent = 'このチームをパーティへ反映';
-    apply.addEventListener('click', ()=>applyTeamToParty(t));
-    btns.appendChild(apply);
-
-    card.appendChild(btns);
-    box.appendChild(card);
+    const btns=document.createElement('div'); btns.className='tight'; btns.style.marginTop='8px';
+    const apply=document.createElement('button'); apply.className='btn'; apply.textContent='このチームをパーティへ反映';
+    apply.addEventListener('click',()=>applyTeamToParty(t));
+    btns.appendChild(apply); card.appendChild(btns); box.appendChild(card);
   }
 }
 
 document.getElementById('filterBox').addEventListener('input', renderTeamsList);
 
 function escapeHtml(s){
-  return String(s||'').replace(/[&<>"]g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  // ★修正点：正規表現の末尾に /g（グローバル）を正しく付与
+  return String(s||'').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 }
 
-// =====================
-// パーティ: 6スロット
-// =====================
+// ===== パーティ =====
 const partyGrid = document.getElementById('partyGrid');
-
 function buildPartyUI(){
-  partyGrid.innerHTML = '';
-  for (let i=1;i<=6;i++){
-    const c = document.createElement('div');
-    c.className = 'card';
-    c.innerHTML = `
-      <div class="slot-h"><strong>スロット ${i}</strong> <small id="p${i}Meta" class="muted"></small></div>
+  partyGrid.innerHTML='';
+  for(let i=1;i<=6;i++){
+    const c=document.createElement('div'); c.className='card';
+    c.innerHTML=`<div class="slot-h"><strong>スロット ${i}</strong> <small id="p${i}Meta" class="muted"></small></div>
       <div class="row"><label>名前</label><input id="p${i}Name" type="text" placeholder="例：サーフゴー"/></div>
       <div class="row"><label>持ち物</label><input id="p${i}Item" type="text"/></div>
-      <div class="row"><label>テラタイプ</label><input id="p${i}Tera" type="text"/></div>
-    `;
+      <div class="row"><label>テラタイプ</label><input id="p${i}Tera" type="text"/></div>`;
     partyGrid.appendChild(c);
   }
 }
-
 buildPartyUI();
 
 function applyTeamToParty(team){
-  // タブ切替（パーティへ）
   tabs.forEach(b=>b.classList.remove('active'));
   document.querySelector('.tab[data-tab="party"]').classList.add('active');
   Object.values(sections).forEach(sec=>sec.classList.add('hidden'));
   sections.party.classList.remove('hidden');
 
-  const mem = team.members || [];
-  for (let i=1;i<=6;i++){
-    const m = mem[i-1] || {name:'',item:'',tera:''};
-    document.getElementById(`p${i}Name`).value = m.name||'';
-    document.getElementById(`p${i}Item`).value = m.item||'';
-    document.getElementById(`p${i}Tera`).value = m.tera||'';
-    document.getElementById(`p${i}Meta`).textContent = `S${team.meta.season||'?'} ${team.meta.rule||''}` + (team.meta.rank?` / 順位:${team.meta.rank}`:'');
+  const mem=team.members||[];
+  for(let i=1;i<=6;i++){
+    const m=mem[i-1]||{name:'',item:'',tera:''};
+    document.getElementById(`p${i}Name`).value=m.name||'';
+    document.getElementById(`p${i}Item`).value=m.item||'';
+    document.getElementById(`p${i}Tera`).value=m.tera||'';
+    document.getElementById(`p${i}Meta`).textContent=`S${team.meta.season||'?'} ${team.meta.rule||''}`+(team.meta.rank?` / 順位:${team.meta.rank}`:'');
   }
   refreshPartyJSON();
 }
 
 function getParty(){
-  const arr = [];
-  for (let i=1;i<=6;i++){
-    arr.push({
-      name: document.getElementById(`p${i}Name`).value.trim(),
-      item: document.getElementById(`p${i}Item`).value.trim(),
-      tera: document.getElementById(`p${i}Tera`).value.trim(),
-    });
+  const arr=[]; for(let i=1;i<=6;i++){
+    arr.push({ name:document.getElementById(`p${i}Name`).value.trim(),
+               item:document.getElementById(`p${i}Item`).value.trim(),
+               tera:document.getElementById(`p${i}Tera`).value.trim() });
   }
   return arr;
 }
-
-function refreshPartyJSON(){
-  const data = { members: getParty() };
-  document.getElementById('partyJSON').value = JSON.stringify(data, null, 2);
-}
-
+function refreshPartyJSON(){ const data={ members:getParty() }; document.getElementById('partyJSON').value=JSON.stringify(data,null,2); }
 for (let i=1;i<=6;i++){
   ['p'+i+'Name','p'+i+'Item','p'+i+'Tera'].forEach(id=>{
-    document.addEventListener('input', (e)=>{
-      if (e.target && e.target.id === id) refreshPartyJSON();
-    });
+    document.addEventListener('input',(e)=>{ if(e.target && e.target.id===id) refreshPartyJSON(); });
   });
 }
-
-document.getElementById('copyPartyJSON').addEventListener('click', ()=>{
-  const ta = document.getElementById('partyJSON');
-  ta.select();
-  document.execCommand('copy');
-});
-
-document.getElementById('clearParty').addEventListener('click', ()=>{
-  buildPartyUI();
-  refreshPartyJSON();
-});
-
-// 初期
+document.getElementById('copyPartyJSON').addEventListener('click', ()=>{ const ta=document.getElementById('partyJSON'); ta.select(); document.execCommand('copy'); });
+document.getElementById('clearParty').addEventListener('click', ()=>{ buildPartyUI(); refreshPartyJSON(); });
 refreshPartyJSON();
-
-</script></body>
+</script>
+</body>
 </html>
