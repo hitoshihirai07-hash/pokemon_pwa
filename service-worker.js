@@ -1,5 +1,5 @@
 // 反映が遅い時はここを v+1 してください
-const CACHE_NAME = 'pokemon-calc-v10';
+const CACHE_NAME = 'pokemon-calc-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -38,3 +38,4 @@ self.addEventListener('fetch', (e) => {
     caches.match(e.request).then(res => res || fetch(e.request))
   );
 });
+
