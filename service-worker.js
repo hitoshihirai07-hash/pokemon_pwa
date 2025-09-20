@@ -1,44 +1,35 @@
-// 反映が遅い時はここを v+1 してください
-const CACHE_NAME = 'pokemon-calc-v14';
+const CACHE_NAME = 'poke-calc-cache-v7';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
   './manifest.json',
-  './pokemon_master.json', // 同階層に配置
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './pokemon_master.json'
+  // 画像フォルダを使うなら: './imgs/...'
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });
+
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k))))
+      .then(()=>self.clients.claim())
   );
 });
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // JSON は常にネット優先（最新を取りに行く）
-  if (url.pathname.endsWith('/pokemon_master.json')) {
+  if (url.origin === location.origin) {
     e.respondWith(
-      fetch(e.request).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then(c => c.put(e.request, copy));
-        return res;
-      }).catch(() => caches.match(e.request))
+      caches.match(e.request).then(res => res || fetch(e.request).then(r=>{
+        // 動的にjson差し替える場合はここでキャッシュ更新してもOK
+        return r;
+      }))
     );
-    return;
+  } else {
+    // 外部画像（PokeAPI等）はネット優先
+    e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
   }
-  // それ以外はキャッシュ優先
-  e.respondWith(
-    caches.match(e.request).then(res => res || fetch(e.request))
-  );
 });
-
-
-
-
