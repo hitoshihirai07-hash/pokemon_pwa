@@ -1,4 +1,4 @@
-/* ===== タブ操作 ===== */
+/* ===== タブ切替 ===== */
 const tabs = document.querySelectorAll('.tab');
 const sections = {
   calc:  document.getElementById('tab-calc'),
@@ -18,13 +18,13 @@ for (const b of tabs){
   });
 }
 
-/* ===== 共通ユーティリティ ===== */
+/* ===== 共通 ===== */
 function set(id,v){ const el=document.getElementById(id); if(el) el.value=v; }
 function val(id,def){ const el=document.getElementById(id); const n=Number(el?.value); return Number.isFinite(n)?n:def; }
 function pct(x,tot){ return tot? (x/tot*100).toFixed(1):'0.0'; }
-function ceilDiv(a,b){ return Math.floor((a+b-1)/b); }
+function ceilDiv(a,b){ return Math.floor((a+b-1)/(b||1)); }
 
-/* ===== ランク倍率 & 初期化 ===== */
+/* ===== ランク倍率 ===== */
 const RANK={-6:2/8,-5:2/7,-4:2/6,-3:2/5,-2:2/4,-1:2/3,0:1,1:1.5,2:2,3:2.5,4:3,5:3.5,6:4};
 function fillSelect(id, arr, def){ const s=document.getElementById(id); s.innerHTML=''; arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o)}); if(def!==undefined) s.value=String(def); }
 fillSelect('atkRank', Object.keys(RANK), 0);
@@ -41,7 +41,7 @@ function fillWeather(id){ const w=['none','sun','rain','sand','snow']; const s=d
 function fillMoveType(id){ const t=['炎','水','電気','草','氷','格闘','毒','地面','飛行','エスパー','虫','岩','ゴースト','ドラゴン','悪','鋼','フェアリー','ノーマル']; const s=document.getElementById(id); t.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;s.appendChild(o)}); s.value='ノーマル';}
 fillMoveType('moveType'); fillMoveType('v13_moveType');
 
-/* ===== 実数値計算UI ===== */
+/* ===== 実数値計算 UI ===== */
 const STAT_KEYS=['HP','攻撃','防御','特攻','特防','素早'];
 function buildStatsUI(side){
   const box=document.getElementById('stats-'+side); box.innerHTML='';
@@ -85,10 +85,43 @@ document.getElementById('btnApplyStats').addEventListener('click',()=>{
   set('atkStat', val('atk_final_攻撃',172));
   set('defStat', val('def_final_防御',120));
   set('defHP',   val('def_final_HP',155));
-  // 計算タブへ
   tabs.forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="calc"]').classList.add('active');
   Object.values(sections).forEach(s=>s.classList.add('hidden')); sections.calc.classList.remove('hidden');
 });
+
+/* ===== 図鑑連携（実数値タブ先頭の検索→ベース反映） ===== */
+function rebuildDexList() {
+  const dl = document.getElementById('dexList'); if (!dl) return;
+  dl.innerHTML = '';
+  (window.DEX || []).slice(0, 5000).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = `${p.No} ${p.名前}`;
+    dl.appendChild(opt);
+  });
+}
+document.addEventListener('dex-ready', rebuildDexList);
+
+function applyMonToBase(side, mon) {
+  if (!mon) return;
+  const map = { 'HP':'HP','攻撃':'攻撃','防御':'防御','特攻':'特攻','特防':'特防','素早':'素早' };
+  Object.keys(map).forEach(k => {
+    const id = `${side}_base_${k}`;
+    const el = document.getElementById(id);
+    if (el && mon[k] != null) el.value = mon[k];
+  });
+  recalcSide(side);
+}
+document.addEventListener('input', (e) => {
+  if (e.target?.id === 'dexSearchAtk') {
+    const mon = window.__DEX__?.findMon(e.target.value.trim()) || null;
+    if (mon) applyMonToBase('atk', mon);
+  } else if (e.target?.id === 'dexSearchDef') {
+    const mon = window.__DEX__?.findMon(e.target.value.trim()) || null;
+    if (mon) applyMonToBase('def', mon);
+  }
+});
+document.getElementById('btnDexLoad')?.addEventListener('click', () => window.__DEX__?.pickAndLoad());
+document.getElementById('btnDexClear')?.addEventListener('click', () => window.__DEX__?.clearLocal());
 
 /* ===== ダメージ計算 ===== */
 const resultBox=document.getElementById('result'), hpbar=document.getElementById('hpbar'), logBox=document.getElementById('logBox'), memoLog=document.getElementById('memoLog');
@@ -97,19 +130,13 @@ document.getElementById('btnClearLog').addEventListener('click',()=>{ LOG=[]; wr
 let undoStack=[]; document.getElementById('btnUndo').addEventListener('click',()=>{ if(!undoStack.length) return; const last=undoStack.pop(); logBox.value=last.log; if(memoLog) memoLog.value=last.log; set('defHP', last.hp); hpbar.style.width= last.hpPct; });
 
 function dmgRange({level=50,power,atk,def,stab=1,typeMul=1,rankAtk=1,rankDef=1,extra=1,mode='phys',crit=false,moveType='ノーマル',weather='none', rockInSand=false, iceInSnow=false}){
-  // 天候：炎/水（威力側の補正）
   let weatherMul=1;
   if(weather==='sun'){ if(moveType==='炎') weatherMul=1.5; if(moveType==='水') weatherMul=0.5; }
   if(weather==='rain'){ if(moveType==='水') weatherMul=1.5; if(moveType==='炎') weatherMul=0.5; }
-
-  // 砂嵐×岩（特殊のみSpD×1.5）
   if(weather==='sand' && mode==='spec' && rockInSand){ def = Math.floor(def*1.5); }
-  // 雪×氷（物理のみDef×1.5）
   if(weather==='snow' && mode==='phys' && iceInSnow){ def = Math.floor(def*1.5); }
-
   let atkMul=rankAtk, defMul=rankDef;
-  if(crit){ defMul=1; } // 簡易：急所は防御ランク無視
-
+  if(crit){ defMul=1; }
   const base=Math.floor(level*2/5)+2;
   const core=Math.floor(Math.floor(base*power*(atk*atkMul)/(def*defMul))/50)+2;
   const min=Math.floor(core*stab*typeMul*0.85*weatherMul*extra);
@@ -177,7 +204,7 @@ document.getElementById('btnSR').addEventListener('click',()=>{ const hp=val('sr
 let ALL_TEAMS=[]; function setTeams(arr){ ALL_TEAMS=Array.isArray(arr)?arr:[]; document.getElementById('badgeTeams').textContent=`構築: ${ALL_TEAMS.length}件`; renderTeamsList(); }
 const diagBox=document.getElementById('diagBox');
 document.getElementById('diagBtn').addEventListener('click',()=>{ diagBox.classList.toggle('hidden'); });
-function setText(id,txt){ document.getElementById(id).textContent=txt; }
+function setText(id,txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
 
 async function handleLoad(){
   const f=document.getElementById('fileInput').files[0];
@@ -211,7 +238,7 @@ function renderTeamsList(){
     const inMembers=t.members.map(m=>`${m.name} ${m.item} ${m.tera}`.toLowerCase()).join(' ');
     return inMeta.includes(f)||inMembers.includes(f);
   });
-  document.getElementById('filterCount').textContent=`${src.length} / ${ALL_TEAMS.length}`;
+  setText('filterCount',`${src.length} / ${ALL_TEAMS.length}`);
   if(!src.length){ const d=document.createElement('div'); d.className='muted'; d.textContent='0件です。'; box.appendChild(d); return; }
   for(const t of src){
     const card=document.createElement('div'); card.className='card';
@@ -230,10 +257,10 @@ document.getElementById('filterBox').addEventListener('input', renderTeamsList);
 const partyGrid=document.getElementById('partyGrid');
 function buildPartyUI(){ partyGrid.innerHTML=''; for(let i=1;i<=6;i++){ const c=document.createElement('div'); c.className='card'; c.innerHTML=`<div class="slot-h"><strong>スロット ${i}</strong> <small id="p${i}Meta" class="muted"></small></div><div class="row"><label>名前</label><input id="p${i}Name" type="text" placeholder="例：サーフゴー"></div><div class="row"><label>持ち物</label><input id="p${i}Item" type="text"></div><div class="row"><label>テラタイプ</label><input id="p${i}Tera" type="text"></div>`; partyGrid.appendChild(c); } }
 buildPartyUI();
-function refreshPartyJSON(){ const data={ members: getParty() }; document.getElementById('partyJSON').value=JSON.stringify(data,null,2); }
-function getParty(){ const arr=[]; for(let i=1;i<=6;i++){ arr.push({ name:val(`p${i}Name`,'' ).toString(), item:val(`p${i}Item`,'' ).toString(), tera:val(`p${i}Tera`,'' ).toString() }); } return arr; }
+function refreshPartyJSON(){ const data={ members: getParty() }; const ta=document.getElementById('partyJSON'); if(ta) ta.value=JSON.stringify(data,null,2); }
+function getParty(){ const arr=[]; for(let i=1;i<=6;i++){ arr.push({ name:document.getElementById(`p${i}Name`)?.value||'', item:document.getElementById(`p${i}Item`)?.value||'', tera:document.getElementById(`p${i}Tera`)?.value||'' }); } return arr; }
 function applyTeamToParty(team){
-  const mem=team.members||[]; for(let i=1;i<=6;i++){ const m=mem[i-1]||{name:'',item:'',tera:''}; set(`p${i}Name`,m.name||''); set(`p${i}Item`,m.item||''); set(`p${i}Tera`,m.tera||''); document.getElementById(`p${i}Meta`).textContent=`S${team.meta.season||'?'} ${team.meta.rule||''}`+(team.meta.rank?` / 順位:${team.meta.rank}`:''); }
+  const mem=team.members||[]; for(let i=1;i<=6;i++){ const m=mem[i-1]||{name:'',item:'',tera:''}; set(`p${i}Name`,m.name||''); set(`p${i}Item`,m.item||''); set(`p${i}Tera`,m.tera||''); const meta=document.getElementById(`p${i}Meta`); if(meta) meta.textContent=`S${team.meta.season||'?'} ${team.meta.rule||''}`+(team.meta.rank?` / 順位:${team.meta.rank}`:''); }
   refreshPartyJSON();
   tabs.forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="party"]').classList.add('active');
   Object.values(sections).forEach(s=>s.classList.add('hidden')); sections.party.classList.remove('hidden');
@@ -245,20 +272,17 @@ refreshPartyJSON();
 
 /* ===== タイマー ===== */
 let timer=null, remainMs=0;
-function updateTimerBadge(){ document.getElementById('badgeTimer').textContent = `タイマー: ${timer?'動作中':'停止'}`; }
+function updateTimerBadge(){ const b=document.getElementById('badgeTimer'); if(b) b.textContent = `タイマー: ${timer?'動作中':'停止'}`; }
 function fmt(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
 document.getElementById('timerStart').addEventListener('click',()=>{ const min=val('timerMin',15); remainMs=min*60*1000; set('timerState','動作中'); updateTimerBadge(); if(timer) clearInterval(timer); timer=setInterval(()=>{ remainMs-=1000; set('timerRemain',fmt(remainMs)); if(remainMs<=0){ clearInterval(timer); timer=null; set('timerState','終了'); updateTimerBadge(); alert('タイマー終了'); }},1000); });
 document.getElementById('timerStop').addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; set('timerState','停止中'); updateTimerBadge(); } });
 document.getElementById('timerReset').addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; } set('timerRemain','00:00'); set('timerState','停止中'); updateTimerBadge(); });
 updateTimerBadge();
-
-// バッジ（ログ件数初期化）
 document.getElementById('badgeLog').textContent='ログ: 0件';
 
-// ---- Service Worker 登録（GitHub Pages配下でも効く相対パス）----
+/* ===== Service Worker 登録（Pages配下対応） ===== */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.error);
   });
 }
-
