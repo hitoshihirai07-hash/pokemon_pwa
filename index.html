@@ -4,6 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>構築データ取り込み（完全版・単一HTML）</title>
+<!-- 404防止：空のfavicon -->
+<link rel="icon" href="data:,">
 <style>
   :root{--brand:#0b74de;--bg:#f6f7fb;--card:#fff;--muted:#666}
   *{box-sizing:border-box}
@@ -135,23 +137,50 @@ function setTeams(arr){
   renderTeamsList();
 }
 
-// ===== CSV/TSV parser =====
+// ===== 文字列の安全エスケープ（正規表現絡みの不具合を避ける安全版） =====
+function escapeHtml(s){
+  const map={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'};
+  return String(s ?? '').replace(/[&<>"]/g, ch => map[ch]);
+}
+
+// ===== 区切り判定を「非正規表現」で実装（環境差バグ回避） =====
+function charCount(str, ch){
+  let c=0;
+  for (let i=0;i<str.length;i++) if (str[i]===ch) c++;
+  return c;
+}
+
+// ===== CSV/TSV parser（正規表現無しのカウントに変更） =====
 function parseCSV(text){
   if (!text || !text.trim()) return [];
   text = text.replace(/\uFEFF/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
   const sample = text.split('\n').slice(0,5).join('\n');
-  const score = (ch)=> (sample.match(new RegExp('\\'+ch,'g'))||[]).length;
-  let delim = ','; const cand=[{c:'\t',s:score('\t')},{c:';',s:score(';')},{c:',',s:score(',')}].sort((a,b)=>b.s-a.s); if (cand[0].s>0) delim=cand[0].c;
-  const rows=[]; let cur='',inQ=false,line=[],i=0; const pushCell=()=>{line.push(cur);cur='';}; const pushLine=()=>{rows.push(line);line=[];}; const s=text+'\n';
+  let delim = ',';
+  const cand = [
+    {c:'\t', s: charCount(sample, '\t')},
+    {c:';',  s: charCount(sample, ';')},
+    {c:',',  s: charCount(sample, ',')}
+  ].sort((a,b)=>b.s-a.s);
+  if (cand[0].s>0) delim = cand[0].c;
+
+  const rows=[];
+  let cur='', inQ=false, line=[], i=0;
+  const pushCell=()=>{ line.push(cur); cur=''; };
+  const pushLine=()=>{ rows.push(line); line=[]; };
+  const s=text+'\n';
+
   while(i<s.length){
     const ch=s[i];
     if(inQ){
-      if(ch==='"'){ if(s[i+1]==='"'){cur+='"'; i+=2; continue;} inQ=false; i++; continue; }
+      if(ch==='"'){
+        if(s[i+1]==='"'){ cur+='"'; i+=2; continue; }
+        inQ=false; i++; continue;
+      }
       cur+=ch; i++; continue;
     } else {
-      if(ch==='"'){inQ=true; i++; continue;}
-      if(ch===delim){pushCell(); i++; continue;}
-      if(ch=== '\n'){pushCell(); pushLine(); i++; continue;}
+      if(ch==='"'){ inQ=true; i++; continue; }
+      if(ch===delim){ pushCell(); i++; continue; }
+      if(ch=== '\n'){ pushCell(); pushLine(); i++; continue; }
       cur+=ch; i++;
     }
   }
@@ -196,7 +225,13 @@ function normalizeTeams(rows){
   }
   if(outA.length) return outA;
 
-  const norm=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,'').replace(/[（）()]/g,'').replace(/ポケモン|pokemon|poke/g,'name').replace(/名前/g,'name').replace(/もちもの|持ち物|item/g,'item').replace(/テラタイプ|テラ|tera/g,'tera');
+  const norm=s=>String(s||'').trim().toLowerCase()
+    .replace(/\s+/g,'')
+    .replace(/[（）()]/g,'')
+    .replace(/ポケモン|pokemon|poke/g,'name')
+    .replace(/名前/g,'name')
+    .replace(/もちもの|持ち物|item/g,'item')
+    .replace(/テラタイプ|テラ|tera/g,'tera');
 
   // 1行に6匹
   const packs=[]; const tryRow=r=>{
@@ -281,6 +316,7 @@ async function handleLoad(){
     const rows = parseCSV(txt); rowsCount=rows.length; mode = mode||'CSV/TSV'; teams=normalizeTeams(rows);
   }
 
+  // フィルタは一旦解除
   const filtered = document.getElementById('filterBox').value.trim();
   if (filtered) document.getElementById('filterBox').value='';
 
@@ -378,11 +414,6 @@ function renderTeamsList(){
 }
 
 document.getElementById('filterBox').addEventListener('input', renderTeamsList);
-
-function escapeHtml(s){
-  // ★修正点：正規表現の末尾に /g（グローバル）を正しく付与
-  return String(s||'').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-}
 
 // ===== パーティ =====
 const partyGrid = document.getElementById('partyGrid');
