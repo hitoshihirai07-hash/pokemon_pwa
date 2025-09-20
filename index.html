@@ -1,429 +1,488 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>ポケモン計算 PWA</title>
-  <link rel="manifest" href="manifest.json"/>
-  <meta name="theme-color" content="#0b74de"/>
-  <style>
-    :root{--brand:#0b74de;--bg:#f6f7fb;--card:#fff;--muted:#666}
-    *{box-sizing:border-box}
-    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif;margin:0;background:var(--bg);color:#222}
-    header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--brand);color:#fff;position:sticky;top:0;z-index:10}
-    main{padding:16px;max-width:1200px;margin:0 auto}
-    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
-    .tab{border:1px solid #cfe0ff;border-radius:999px;background:#e9f1ff;color:#1c4fbf;padding:6px 12px;font-weight:700;cursor:pointer}
-    .tab.active{background:#1c4fbf;color:#fff;border-color:#1c4fbf}
-    .grid{display:grid;gap:12px}
-    @media(min-width:980px){.grid-2{grid-template-columns:1fr 1fr}.grid-3{grid-template-columns:1fr 1fr 1fr}}
-    .card{background:var(--card);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:16px}
-    h2,h3{margin:.2em 0 .6em}
-    label{font-size:.95em}
-    input[type="number"],input[type="text"],select,textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:10px}
-    textarea{min-height:120px}
-    .row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center;margin:8px 0}
-    .row3{display:grid;grid-template-columns:120px 1fr 1fr;gap:10px;align-items:center;margin:8px 0}
-    .btn{border:0;border-radius:10px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .btn-ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
-    .muted{color:var(--muted);font-size:.95em}
-    .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef4ff;color:#2a58b5;font-weight:700}
-    .hpbar{height:14px;background:#e5e7eb;border-radius:10px;overflow:hidden}
-    .hpbar>div{height:100%;background:#22c55e;width:0%}
-    .tight{display:flex;gap:8px;flex-wrap:wrap}
-    .hidden{display:none}
-    .suggest{position:relative}
-    .suggest ul{position:absolute;z-index:3;left:0;right:0;top:100%;background:#fff;border:1px solid #ddd;border-radius:8px;margin:4px 0 0;padding:4px;max-height:260px;overflow:auto}
-    .suggest li{list-style:none;padding:6px 8px;border-radius:6px;cursor:pointer}
-    .suggest li:hover{background:#f2f6ff}
-    table{width:100%;border-collapse:collapse}
-    th,td{border-bottom:1px solid #eee;padding:6px 8px;text-align:left}
-
-    /* パーティUI */
-    .party-grid{display:grid;gap:12px}
-    @media(min-width:980px){.party-grid{grid-template-columns:1fr 1fr}}
-    .slot-h{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-    .slot-h small{color:var(--muted)}
-    .ev-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
-    .ev-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
-    .badge-warn{background:#fff3cd;color:#7a5a00}
-    .badge-err{background:#ffe5e5;color:#b00020}
-
-    /* 構築データ */
-    .teams-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .team-grid{display:grid;gap:12px}
-    @media(min-width:980px){.team-grid{grid-template-columns:1fr 1fr}}
-    .team-card{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff}
-    .mons{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
-    .mon{border:1px solid #eee;border-radius:10px;padding:6px;text-align:center;font-size:.9em}
-    .mon img{height:44px;object-fit:contain}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ポケモン計算ツール（構築データ対応 完全版）</title>
+<style>
+  :root{--brand:#0b74de;--bg:#f6f7fb;--card:#fff;--muted:#666}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif;margin:0;background:var(--bg);color:#222}
+  header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--brand);color:#fff;position:sticky;top:0;z-index:10}
+  main{padding:16px;max-width:1200px;margin:0 auto}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
+  .tab{border:1px solid #cfe0ff;border-radius:999px;background:#e9f1ff;color:#1c4fbf;padding:6px 12px;font-weight:700;cursor:pointer}
+  .tab.active{background:#1c4fbf;color:#fff;border-color:#1c4fbf}
+  .grid{display:grid;gap:12px}
+  @media(min-width:980px){.grid-2{grid-template-columns:1fr 1fr}.grid-3{grid-template-columns:1fr 1fr 1fr}}
+  .card{background:var(--card);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:16px}
+  h2,h3{margin:.2em 0 .6em}
+  label{font-size:.95em}
+  input[type="number"],input[type="text"],select,textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:10px}
+  textarea{min-height:120px}
+  .row{display:grid;grid-template-columns:160px 1fr;gap:10px;align-items:center;margin:8px 0}
+  .row3{display:grid;grid-template-columns:160px 1fr 1fr;gap:10px;align-items:center;margin:8px 0}
+  .btn{border:0;border-radius:10px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn-ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+  .muted{color:var(--muted);font-size:.95em}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef4ff;color:#2a58b5;font-weight:700}
+  .tight{display:flex;gap:8px;flex-wrap:wrap}
+  .hidden{display:none}
+  .teams-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .team-grid{display:grid;gap:12px}
+  @media(min-width:980px){.team-grid{grid-template-columns:1fr 1fr}}
+  .team-card{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff}
+  .mons{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .mon{border:1px solid #eee;border-radius:10px;padding:6px;text-align:center;font-size:.9em}
+  .mon img{height:44px;object-fit:contain}
+  .party-grid{display:grid;gap:12px}
+  @media(min-width:980px){.party-grid{grid-template-columns:1fr 1fr}}
+  .slot-h{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .slot-h small{color:var(--muted)}
+</style>
 </head>
 <body>
 <header>
-  <div>ポケモン計算 PWA</div>
+  <div>ポケモン計算ツール（構築データ対応 完全版）</div>
   <div class="tight">
-    <span id="swStatus" class="pill">SW 準備中</span>
-    <button id="installBtn" class="btn btn-ghost" hidden>ホーム画面に追加</button>
+    <span class="pill" id="countBadge">0 件</span>
   </div>
 </header>
 
 <main>
   <div class="tabs">
-    <button class="tab active" data-tab="calc" type="button">計算</button>
-    <button class="tab" data-tab="multi" type="button">1対3</button>
-    <button class="tab" data-tab="dex" type="button">図鑑 / パーティ</button>
-    <button class="tab" data-tab="teams" type="button">構築データ</button>
-    <button class="tab" data-tab="memo" type="button">対戦メモ</button>
-    <button class="tab" data-tab="timer" type="button">タイマー</button>
+    <button class="tab active" data-tab="teams" type="button">構築データ</button>
+    <button class="tab" data-tab="party" type="button">パーティ</button>
+    <button class="tab" data-tab="memo" type="button">メモ</button>
   </div>
 
-  <!-- ===== 計算タブ ===== -->
-  <section id="tab-calc">
-    <div class="grid grid-2">
-      <div class="card">
-        <h2>攻撃側</h2>
-        <div class="row3"><label>実数値（攻撃）</label><input id="atkA" type="number" min="1" value="200"/><button class="btn btn-ghost" onclick="copyFromAtkCalc('A')">← 実数値計</button></div>
-        <div class="row3"><label>実数値（特攻）</label><input id="atkS" type="number" min="1" value="200"/><button class="btn btn-ghost" onclick="copyFromAtkCalc('S')">← 実数値計</button></div>
-        <details>
-          <summary>実数値計（攻撃/特攻）</summary>
-          <div class="row3"><label>対象</label><select id="atkCalcTarget"><option>攻撃</option><option>特攻</option></select><span class="muted">Lv50固定</span></div>
-          <div class="row3"><label>種族値</label><input id="atkBase" type="number" min="1" max="255" value="130"/><span></span></div>
-          <div class="row3"><label>個体値</label><input id="atkIV" type="number" min="0" max="31" value="31"/><span></span></div>
-          <div class="row3"><label>努力値</label><input id="atkEV" type="number" min="0" max="252" value="252"/><span></span></div>
-          <div class="row3"><label>補正</label><select id="atkNature"><option value="1.1">1.1倍</option><option value="1.0" selected>1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="runAtkCalc()">計算して反映</button></div>
-          <div class="row"><label>結果</label><div id="atkCalcOut" class="pill">—</div></div>
-        </details>
-      </div>
-
-      <div class="card">
-        <h2>防御側</h2>
-        <div class="row3"><label>実数値（HP）</label><input id="defHP" type="number" min="1" value="155"/><button class="btn btn-ghost" onclick="copyFromDefCalc('HP')">← 実数値計</button></div>
-        <div class="row3"><label>実数値（防御）</label><input id="defB" type="number" min="1" value="120"/><button class="btn btn-ghost" onclick="copyFromDefCalc('B')">← 実数値計</button></div>
-        <div class="row3"><label>実数値（特防）</label><input id="defD" type="number" min="1" value="120"/><button class="btn btn-ghost" onclick="copyFromDefCalc('D')">← 実数値計</button></div>
-        <details>
-          <summary>実数値計（HP/防御/特防）</summary>
-          <div class="row3"><label>対象</label><select id="defCalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
-          <div class="row3"><label>種族値</label><input id="defBase" type="number" min="1" max="255" value="100"/><span></span></div>
-          <div class="row3"><label>個体値</label><input id="defIV" type="number" min="0" max="31" value="31"/><span></span></div>
-          <div class="row3"><label>努力値</label><input id="defEV" type="number" min="0" max="252" value="0"/><span></span></div>
-          <div class="row3"><label>補正（HP以外）</label><select id="defNature"><option value="1.1">1.1倍</option><option value="1.0" selected>1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="runDefCalc()">計算して反映</button></div>
-          <div class="row"><label>結果</label><div id="defCalcOut" class="pill">—</div></div>
-        </details>
-      </div>
-    </div>
-
+  <!-- === 構築データ === -->
+  <section id="tab-teams">
     <div class="card">
-      <h2>ダメージ設定</h2>
-      <div class="grid grid-2">
-        <div>
-          <div class="row"><label>技区分</label><select id="category"><option>物理</option><option>特殊</option></select></div>
-          <div class="row"><label>威力</label><input id="power" type="number" min="1" value="50"/></div>
-          <div class="row"><label>技タイプ</label>
-            <select id="moveType">
-              <option>ノーマル</option><option>ほのお</option><option>みず</option><option>でんき</option><option>くさ</option><option>こおり</option>
-              <option>かくとう</option><option>どく</option><option>じめん</option><option>ひこう</option><option>エスパー</option><option>むし</option>
-              <option>いわ</option><option>ゴースト</option><option>ドラゴン</option><option>あく</option><option>はがね</option><option>フェアリー</option>
-            </select>
-          </div>
-          <div class="row"><label>STAB</label><select id="stab"><option value="1.0">1.0</option><option value="1.5" selected>1.5</option><option value="2.0">2.0</option></select></div>
-          <div class="row"><label>タイプ相性</label><select id="typeMul">
-            <option value="0.25">0.25</option><option value="0.5">0.5</option><option value="1.0" selected>1.0</option><option value="2.0">2.0</option><option value="4.0">4.0</option>
-          </select></div>
-        </div>
-        <div>
-          <div class="row"><label>天候</label><select id="weather"><option>なし</option><option>晴れ</option><option>雨</option><option>砂嵐</option><option>雪</option></select></div>
-          <div class="row"><label>アイテム</label><select id="item"><option>なし</option><option>こだわりハチマキ</option><option>こだわりメガネ</option><option>いのちのたま</option></select></div>
-          <div class="row"><label>状態</label><select id="status"><option>通常</option><option>やけど</option></select></div>
-          <div class="row"><label>攻撃ランク</label><select id="atkStage"></select></div>
-          <div class="row"><label>防御ランク</label><select id="defStage"></select></div>
-          <div class="row"><label>連続回数</label><select id="hits"></select></div>
-          <div class="row"><label>砂嵐・岩特防1.5</label><select id="sandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
-          <div class="row"><label>雪・氷防御1.5</label><select id="snowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
-          <div class="row"><label>その他補正</label><input id="otherMul" type="number" step="0.05" min="0" value="1.0"/></div>
-        </div>
-      </div>
-      <div class="tight" style="margin-top:10px">
-        <button class="btn" onclick="previewDamage()">計算（HP減らさない）</button>
-        <button class="btn btn-ghost" onclick="doAttack()">攻撃（乱数適用）</button>
-        <button class="btn btn-ghost" onclick="resetHP()">HP/ログ リセット</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>防御側 HP</h3>
-      <div class="row"><label>現在 / 最大</label><div id="hpText">0 / 0 (0%)</div></div>
-      <div class="hpbar"><div id="hpFill"></div></div>
-      <div style="margin-top:12px">
-        <div id="resultLine" class="muted">結果がここに出ます</div>
-        <ul id="resultList"></ul>
-      </div>
-    </div>
-
-    <div class="card"><h3>ログ</h3><textarea id="log" readonly></textarea></div>
-  </section>
-
-  <!-- ===== 1対3（上：攻撃側、下：3体 横並び） ===== -->
-  <section id="tab-multi" class="hidden">
-    <!-- 上：攻撃側（共通） -->
-    <div class="card">
-      <h2>攻撃側（共通・手入力）</h2>
-      <div class="row3"><label>攻撃</label><input id="mAtkA" type="number" min="1" value="200"/><span class="muted">物理時に使用</span></div>
-      <div class="row3"><label>特攻</label><input id="mAtkS" type="number" min="1" value="200"/><span class="muted">特殊時に使用</span></div>
-      <div class="row"><label>技区分</label><select id="mCategory"><option>物理</option><option>特殊</option></select></div>
-      <div class="row"><label>威力</label><input id="mPower" type="number" min="1" value="50"/></div>
-      <div class="row"><label>技タイプ</label>
-        <select id="mMoveType">
-          <option>ノーマル</option><option>ほのお</option><option>みず</option><option>でんき</option><option>くさ</option><option>こおり</option>
-          <option>かくとう</option><option>どく</option><option>じめん</option><option>ひこう</option><option>エスパー</option><option>むし</option>
-          <option>いわ</option><option>ゴースト</option><option>ドラゴン</option><option>あく</option><option>はがね</option><option>フェアリー</option>
-        </select>
-      </div>
-      <div class="row"><label>STAB</label><select id="mStab"><option value="1.0">1.0</option><option value="1.5" selected>1.5</option><option value="2.0">2.0</option></select></div>
-      <div class="row"><label>天候</label><select id="mWeather"><option>なし</option><option>晴れ</option><option>雨</option><option>砂嵐</option><option>雪</option></select></div>
-      <div class="row"><label>アイテム</label><select id="mItem"><option>なし</option><option>こだわりハチマキ</option><option>こだわりメガネ</option><option>いのちのたま</option></select></div>
-      <div class="row"><label>状態</label><select id="mStatus"><option>通常</option><option>やけど</option></select></div>
-      <div class="row"><label>攻撃ランク</label><select id="mAtkStage"></select></div>
-      <div class="row"><label>連続回数</label><select id="mHits"></select></div>
-      <div class="row"><label>その他補正</label><input id="mOtherMul" type="number" step="0.05" min="0" value="1.0"/></div>
-      <div class="tight" style="margin-top:10px">
-        <button class="btn" onclick="mPreviewAll()">3体まとめて計算</button>
-        <button class="btn btn-ghost" onclick="mAttackAll()">3体まとめて攻撃</button>
-        <button class="btn btn-ghost" onclick="mResetAll()">HP/ログ リセット</button>
-      </div>
-    </div>
-
-    <!-- 下：3体 横並び -->
-    <div class="grid grid-3" style="margin-top:12px">
-      <!-- 相手1 -->
-      <div class="card">
-        <h3>相手1</h3>
-        <div class="row"><label>名前</label><input id="d1Name" list="pkmnlist" placeholder="例：サーフゴー"/></div>
-        <div id="d1DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
-        <div class="row"><label>HP</label><input id="d1HP" type="number" min="1" value="155"/></div>
-        <div class="row"><label>防御</label><input id="d1B" type="number" min="1" value="120"/></div>
-        <div class="row"><label>特防</label><input id="d1D" type="number" min="1" value="120"/></div>
-        <div class="row"><label>タイプ相性</label><select id="d1TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
-        <div class="row"><label>防御ランク</label><select id="d1DefStage"></select></div>
-        <div class="row"><label>砂嵐・岩特防1.5</label><select id="d1SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
-        <div class="row"><label>雪・氷防御1.5</label><select id="d1SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
-        <details style="margin-top:6px">
-          <summary>実数値計（HP/防御/特防）</summary>
-          <div class="row3"><label>対象</label><select id="d1CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
-          <div class="row3"><label>種族値</label><input id="d1Base" type="number" min="1" max="255" value="100"/><span></span></div>
-          <div class="row3"><label>個体値</label><input id="d1IV" type="number" min="0" max="31" value="31"/><span></span></div>
-          <div class="row3"><label>努力値</label><input id="d1EV" type="number" min="0" max="252" value="0"/><span></span></div>
-          <div class="row3"><label>補正（HP以外）</label><select id="d1Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(1)">計算して反映</button></div>
-          <div class="row"><label>結果</label><div id="d1CalcOut" class="pill">—</div></div>
-        </details>
-        <div class="row"><label>HPバー</label><div id="d1HpText">0 / 0 (0%)</div></div>
-        <div class="hpbar"><div id="d1HpFill"></div></div>
-        <div class="tight" style="margin-top:8px">
-          <button class="btn" onclick="mPreviewOne(1)">計算</button>
-          <button class="btn btn-ghost" onclick="mAttackOne(1)">攻撃</button>
-          <button class="btn btn-ghost" onclick="mResetOne(1)">リセット</button>
-        </div>
-        <div id="d1Result" class="muted" style="margin-top:6px">—</div>
-      </div>
-
-      <!-- 相手2 -->
-      <div class="card">
-        <h3>相手2</h3>
-        <div class="row"><label>名前</label><input id="d2Name" list="pkmnlist"/></div>
-        <div id="d2DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
-        <div class="row"><label>HP</label><input id="d2HP" type="number" min="1" value="155"/></div>
-        <div class="row"><label>防御</label><input id="d2B" type="number" min="1" value="120"/></div>
-        <div class="row"><label>特防</label><input id="d2D" type="number" min="1" value="120"/></div>
-        <div class="row"><label>タイプ相性</label><select id="d2TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
-        <div class="row"><label>防御ランク</label><select id="d2DefStage"></select></div>
-        <div class="row"><label>砂嵐・岩特防1.5</label><select id="d2SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
-        <div class="row"><label>雪・氷防御1.5</label><select id="d2SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
-        <details style="margin-top:6px">
-          <summary>実数値計（HP/防御/特防）</summary>
-          <div class="row3"><label>対象</label><select id="d2CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
-          <div class="row3"><label>種族値</label><input id="d2Base" type="number" min="1" max="255" value="100"/><span></span></div>
-          <div class="row3"><label>個体値</label><input id="d2IV" type="number" min="0" max="31" value="31"/><span></span></div>
-          <div class="row3"><label>努力値</label><input id="d2EV" type="number" min="0" max="252" value="0"/><span></span></div>
-          <div class="row3"><label>補正（HP以外）</label><select id="d2Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(2)">計算して反映</button></div>
-          <div class="row"><label>結果</label><div id="d2CalcOut" class="pill">—</div></div>
-        </details>
-        <div class="row"><label>HPバー</label><div id="d2HpText">0 / 0 (0%)</div></div>
-        <div class="hpbar"><div id="d2HpFill"></div></div>
-        <div class="tight" style="margin-top:8px">
-          <button class="btn" onclick="mPreviewOne(2)">計算</button>
-          <button class="btn btn-ghost" onclick="mAttackOne(2)">攻撃</button>
-          <button class="btn btn-ghost" onclick="mResetOne(2)">リセット</button>
-        </div>
-        <div id="d2Result" class="muted" style="margin-top:6px">—</div>
-      </div>
-
-      <!-- 相手3 -->
-      <div class="card">
-        <h3>相手3</h3>
-        <div class="row"><label>名前</label><input id="d3Name" list="pkmnlist"/></div>
-        <div id="d3DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
-        <div class="row"><label>HP</label><input id="d3HP" type="number" min="1" value="155"/></div>
-        <div class="row"><label>防御</label><input id="d3B" type="number" min="1" value="120"/></div>
-        <div class="row"><label>特防</label><input id="d3D" type="number" min="1" value="120"/></div>
-        <div class="row"><label>タイプ相性</label><select id="d3TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
-        <div class="row"><label>防御ランク</label><select id="d3DefStage"></select></div>
-        <div class="row"><label>砂嵐・岩特防1.5</label><select id="d3SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
-        <div class="row"><label>雪・氷防御1.5</label><select id="d3SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
-        <details style="margin-top:6px">
-          <summary>実数値計（HP/防御/特防）</summary>
-          <div class="row3"><label>対象</label><select id="d3CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
-          <div class="row3"><label>種族値</label><input id="d3Base" type="number" min="1" max="255" value="100"/><span></span></div>
-          <div class="row3"><label>個体値</label><input id="d3IV" type="number" min="0" max="31" value="31"/><span></span></div>
-          <div class="row3"><label>努力値</label><input id="d3EV" type="number" min="0" max="252" value="0"/><span></span></div>
-          <div class="row3"><label>補正（HP以外）</label><select id="d3Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(3)">計算して反映</button></div>
-          <div class="row"><label>結果</label><div id="d3CalcOut" class="pill">—</div></div>
-        </details>
-        <div class="row"><label>HPバー</label><div id="d3HpText">0 / 0 (0%)</div></div>
-        <div class="hpbar"><div id="d3HpFill"></div></div>
-        <div class="tight" style="margin-top:8px">
-          <button class="btn" onclick="mPreviewOne(3)">計算</button>
-          <button class="btn btn-ghost" onclick="mAttackOne(3)">攻撃</button>
-          <button class="btn btn-ghost" onclick="mResetOne(3)">リセット</button>
-        </div>
-        <div id="d3Result" class="muted" style="margin-top:6px">—</div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:12px"><h3>ログ（1対3）</h3><textarea id="mLog" readonly></textarea></div>
-  </section>
-
-  <!-- ===== 図鑑 / パーティ ===== -->
-  <section id="tab-dex" class="hidden">
-    <div class="card">
-      <h2>図鑑検索</h2>
-      <div class="row suggest">
-        <label>ポケモン名/番号</label>
-        <div>
-          <input id="dexSearch" type="text" placeholder="例）ピカ / 25 / テラパゴス" list="pkmnlist"/>
-          <ul id="dexSuggest" class="hidden"></ul>
-        </div>
-      </div>
-      <datalist id="pkmnlist"></datalist>
-      <img id="dexImg" alt="" style="margin-top:6px;max-height:120px;display:none">
-      <div id="dexInfo" class="muted" style="margin-top:8px">未選択</div>
-
+      <h2>構築データの読み込み（JSON / CSV / TSV 自動対応）</h2>
+      <div class="row"><label>ファイル選択</label><input id="fileInput" type="file" accept=".json,.csv,.tsv,.txt" /></div>
+      <div class="row"><label>貼り付け（任意）</label><textarea id="pasteBox" placeholder='ここへJSONやCSV/TSVを貼り付け → 「読み込む」'></textarea></div>
       <div class="tight" style="margin-top:8px">
-        <select id="dexSendTarget">
-          <optgroup label="メイン：攻撃側">
-            <option value="atk-攻撃">→ 攻撃側 実数値計（攻撃）にセット</option>
-            <option value="atk-特攻">→ 攻撃側 実数値計（特攻）にセット</option>
-          </optgroup>
-          <optgroup label="メイン：防御側">
-            <option value="def-HP">→ 防御側 実数値計（HP）にセット</option>
-            <option value="def-防御">→ 防御側 実数値計（防御）にセット</option>
-            <option value="def-特防">→ 防御側 実数値計（特防）にセット</option>
-          </optgroup>
-          <optgroup label="1対3：相手1">
-            <option value="d1-HP">→ 相手1 実数値計（HP）にセット</option>
-            <option value="d1-防御">→ 相手1 実数値計（防御）にセット</option>
-            <option value="d1-特防">→ 相手1 実数値計（特防）にセット</option>
-          </optgroup>
-          <optgroup label="1対3：相手2">
-            <option value="d2-HP">→ 相手2 実数値計（HP）にセット</option>
-            <option value="d2-防御">→ 相手2 実数値計（防御）にセット</option>
-            <option value="d2-特防">→ 相手2 実数値計（特防）にセット</option>
-          </optgroup>
-          <optgroup label="1対3：相手3">
-            <option value="d3-HP">→ 相手3 実数値計（HP）にセット</option>
-            <option value="d3-防御">→ 相手3 実数値計（防御）にセット</option>
-            <option value="d3-特防">→ 相手3 実数値計（特防）にセット</option>
-          </optgroup>
-        </select>
+        <button class="btn" id="loadBtn">読み込む</button>
+        <button class="btn btn-ghost" id="clearBtn">クリア</button>
+        <span id="loadInfo" class="muted">未読込</span>
       </div>
     </div>
 
-    <div class="card">
-      <h2>パーティ作成（6体）</h2>
-      <div class="pill" id="partyAutoReflect" style="margin-bottom:8px">実数値自動反映：<select id="autoReflect"><option value="on" selected>ON</option><option value="off">OFF</option></select></div>
-      <div class="party-grid" id="partyGrid"></div>
-      <div class="tight" style="margin-top:10px">
-        <input id="partySaveName" placeholder="保存名（例：シーズン1）」/>
-        <button class="btn" onclick="saveParty()">この6体を保存</button>
-        <select id="partyList"></select>
-        <button class="btn btn-ghost" onclick="loadParty()">読み込み</button>
-        <button class="btn btn-ghost" onclick="deleteParty()">削除</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== 構築データ（手動インポート＋ページネーション） ===== -->
-  <section id="tab-teams" class="hidden">
-    <div class="card">
-      <h2>構築データの読み込み</h2>
+    <div class="card" style="margin-top:12px">
       <div class="teams-top">
-        <input type="file" id="teamFile" accept=".json,.csv"/>
-        <label>表示件数</label>
-        <select id="teamPageSize"><option>25</option><option selected>50</option><option>100</option></select>
-        <label>ページ</label>
-        <button class="btn btn-ghost" onclick="teamsPrev()">←</button>
-        <span id="teamPageInfo" class="pill">0 / 0</span>
-        <button class="btn btn-ghost" onclick="teamsNext()">→</button>
-        <span id="teamMeta" class="muted">未読込</span>
+        <h3 style="margin:0">一覧</h3>
+        <input id="filterBox" type="text" placeholder="フィルタ（名前/持ち物/テラ/シーズン/ルール/順位 など）」 style="max-width:360px" />
+        <span class="muted" id="filterCount">0 / 0</span>
       </div>
-      <div class="row"><label>フィルタ（名前/持ち物/テラ）</label><input id="teamQuery" placeholder="例：サーフゴー こだわり…"/></div>
+      <div id="teamsList" class="team-grid" style="margin-top:10px"></div>
     </div>
-
-    <div id="teamsList" class="team-grid"></div>
   </section>
 
-  <!-- ===== 対戦メモ ===== -->
+  <!-- === パーティ === -->
+  <section id="tab-party" class="hidden">
+    <div class="card">
+      <h2>パーティ（構築データから反映可）</h2>
+      <div class="party-grid" id="partyGrid"></div>
+      <div class="tight" style="margin-top:8px">
+        <button class="btn" id="copyPartyJSON">JSONコピー</button>
+        <button class="btn btn-ghost" id="clearParty">リセット</button>
+      </div>
+      <div class="row"><label>JSON</label><textarea id="partyJSON" readonly></textarea></div>
+    </div>
+  </section>
+
+  <!-- === メモ === -->
   <section id="tab-memo" class="hidden">
     <div class="card">
       <h2>対戦メモ</h2>
-      <div class="grid grid-2">
-        <div>
-          <h3>自分（3匹）</h3>
-          <div class="row"><label>1. 名前</label><input id="my1Name" list="pkmnlist" placeholder="例：サーフゴー"/></div>
-          <div class="row"><label>メモ</label><textarea id="my1Note" rows="3"></textarea></div>
-          <div class="row"><label>2. 名前</label><input id="my2Name" list="pkmnlist"/></div>
-          <div class="row"><label>メモ</label><textarea id="my2Note" rows="3"></textarea></div>
-          <div class="row"><label>3. 名前</label><input id="my3Name" list="pkmnlist"/></div>
-          <div class="row"><label>メモ</label><textarea id="my3Note" rows="3"></textarea></div>
-        </div>
-        <div>
-          <h3>相手（3匹）</h3>
-          <div class="row"><label>1. 名前</label><input id="op1Name" list="pkmnlist"/></div>
-          <div class="row"><label>メモ</label><textarea id="op1Note" rows="3"></textarea></div>
-          <div class="row"><label>2. 名前</label><input id="op2Name" list="pkmnlist"/></div>
-          <div class="row"><label>メモ</label><textarea id="op2Note" rows="3"></textarea></div>
-          <div class="row"><label>3. 名前</label><input id="op3Name" list="pkmnlist"/></div>
-          <div class="row"><label>メモ</label><textarea id="op3Note" rows="3"></textarea></div>
-        </div>
-      </div>
-      <div class="row"><label>全体メモ</label><textarea id="matchNote" rows="5" placeholder="初手・選出・勝ち筋など"></textarea></div>
-      <div class="tight">
-        <input id="memoSaveName" placeholder="保存名（例：2025-09-20_ランクマ）」/>
-        <button class="btn" onclick="memoSave()">保存</button>
-        <select id="memoList"></select>
-        <button class="btn btn-ghost" onclick="memoLoad()">読み込み</button>
-        <button class="btn btn-ghost" onclick="memoDelete()">削除</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== タイマー ===== -->
-  <section id="tab-timer" class="hidden">
-    <div class="card">
-      <h2>タイマー</h2>
-      <div class="tight" style="align-items:center;gap:16px;flex-wrap:wrap">
-        <div id="timerDisplay" style="font-size:44px;font-weight:800">10:00</div>
-        <div class="row" style="grid-template-columns:60px 100px"><label>分</label><input id="timerMin" type="number" min="0" value="10"></div>
-        <div class="row" style="grid-template-columns:60px 100px"><label>秒</label><input id="timerSec" type="number" min="0" max="59" value="0"></div>
-        <button class="btn" id="timerStartBtn" type="button" onclick="toggleTimer()">開始</button>
-        <button class="btn btn-ghost" id="timerResetBtn" type="button" onclick="resetTimer()">リセット</button>
-        <div class="muted">タブを切り替えても動作します。</div>
-      </div>
+      <textarea id="memoBox" placeholder="自由記入"></textarea>
     </div>
   </section>
 </main>
 
-<script src="app.js"></script>
+<script>
+// =====================
+// タブ切り替え
+// =====================
+const tabs = document.querySelectorAll('.tab');
+const sections = {
+  teams: document.getElementById('tab-teams'),
+  party: document.getElementById('tab-party'),
+  memo:  document.getElementById('tab-memo'),
+};
+
+tabs.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tabs.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    Object.values(sections).forEach(sec=>sec.classList.add('hidden'));
+    sections[btn.dataset.tab].classList.remove('hidden');
+  });
+});
+
+// =====================
+// 構築データ: 取込・正規化
+// =====================
+let ALL_TEAMS = []; // { meta:{season,rule,rank,rating}, members:[{name,item,tera}×6] }
+
+function setTeams(arr){
+  ALL_TEAMS = Array.isArray(arr) ? arr : [];
+  document.getElementById('countBadge').textContent = `${ALL_TEAMS.length} 件`;
+  renderTeamsList();
+}
+
+// 区切り文字を自動判定（, / \t / ;）＋ダブルクォート対応
+function parseCSV(text){
+  if (!text || !text.trim()) return [];
+  text = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const sample = text.split('\n').slice(0,5).join('\n');
+  const score = (ch)=> (sample.match(new RegExp('\\' + ch,'g'))||[]).length;
+  let delim = ',';
+  const cand = [{c:'\t',s:score('\t')},{c:';',s:score(';')},{c:',',s:score(',')}].sort((a,b)=>b.s-a.s);
+  if (cand[0].s>0) delim = cand[0].c;
+
+  const rows = [];
+  let cur = '', inQ = false, line = [], i = 0;
+  const pushCell = ()=>{ line.push(cur); cur=''; };
+  const pushLine = ()=>{ rows.push(line); line=[]; };
+  const s = text + '\n';
+  while (i < s.length){
+    const ch = s[i];
+    if (inQ){
+      if (ch === '"'){
+        if (s[i+1] === '"'){ cur+='"'; i+=2; continue; }
+        inQ = false; i++; continue;
+      } else { cur += ch; i++; continue; }
+    } else {
+      if (ch === '"'){ inQ = true; i++; continue; }
+      if (ch === delim){ pushCell(); i++; continue; }
+      if (ch === '\n'){ pushCell(); pushLine(); i++; continue; }
+      cur += ch; i++;
+    }
+  }
+  if (rows.length === 0) return [];
+  const headers = rows[0].map(h=>h?.trim?.()||'');
+  const out = [];
+  for (let r=1;r<rows.length;r++){
+    if (!rows[r] || rows[r].length===0) continue;
+    const obj = {};
+    headers.forEach((h,idx)=> obj[h] = rows[r][idx] ?? '');
+    if (Object.values(obj).every(v => (v==null || String(v).trim()===''))) continue;
+    out.push(obj);
+  }
+  return out;
+}
+
+// sv.pokedb.tokyo 形式の JSON を内部形式へ
+function normalizeFromPKDB(json){
+  if (!json || !Array.isArray(json.teams)) return [];
+  const season = json.season ?? '';
+  const rule   = json.rule   ?? '';
+  const out = [];
+  for (const t of json.teams){
+    const members = (t.team || []).slice(0,6).map(m => {
+      const name = m.form ? `${m.pokemon}（${m.form}）` : (m.pokemon || '');
+      return { name, item: m.item || '', tera: m.terastal || '' };
+    });
+    if (members.length){
+      out.push({ meta:{season,rule,rank:(t.rank??''),rating:(t.rating_value??'')}, members });
+    }
+  }
+  return out;
+}
+
+// CSV等の曖昧な列名を吸収して name1..6 / item1..6 / tera1..6 を抽出
+function normalizeTeams(rows){
+  if (!rows || !rows.length) return [];
+
+  // A) すでに members を持つ JSONライク
+  const outA = [];
+  for (const r of rows){
+    if (Array.isArray(r.members) && r.members.length){
+      outA.push({ meta:{season:r.season||r.シーズン||'', rule:r.rule||r.ルール||'', rank:r.rank||r.順位||r.rating||r.レート||''}, members:r.members });
+    }
+  }
+  if (outA.length) return outA;
+
+  // 正規化ヘルパ
+  const norm = s => String(s||'').trim().toLowerCase()
+    .replace(/\s+/g,'')
+    .replace(/[（）()]/g,'')
+    .replace(/ポケモン|pokemon|poke/g,'name')
+    .replace(/名前/g,'name')
+    .replace(/もちもの|持ち物|item/g,'item')
+    .replace(/テラタイプ|テラ|tera/g,'tera');
+
+  // B) 1行に6匹
+  const packs = [];
+  const tryRow = (r)=>{
+    const keys = Object.keys(r);
+    const map = {}; // idx -> {name,item,tera}
+    for (const k of keys){
+      const nk = norm(k);
+      const m = nk.match(/(name|item|tera)(\d{1,2})$/);
+      if (!m) continue;
+      const kind = m[1];
+      const idx  = parseInt(m[2],10);
+      if (idx<1 || idx>6) continue;
+      map[idx] = map[idx] || {name:'',item:'',tera:''};
+      map[idx][kind] = (r[k]??'').toString().trim();
+    }
+    const members = [];
+    for (let i=1;i<=6;i++){
+      if (!map[i] || !map[i].name) continue;
+      members.push(map[i]);
+    }
+    if (members.length){
+      return { meta:{season:r.season||r.シーズン||'', rule:r.rule||r.ルール||'', rank:r.rank||r.順位||r.rating||r.レート||''}, members };
+    }
+    return null;
+  };
+  for (const r of rows){
+    const t = tryRow(r); if (t) packs.push(t);
+  }
+  if (packs.length) return packs;
+
+  // C) 6行=1チーム（team_id 等でグループ化）
+  const guessIdKey = ()=>{
+    const freq = {};
+    for (const r of rows){
+      for (const k of Object.keys(r)){
+        const nk = norm(k);
+        if (/(team|チーム)id$/.test(nk) || /(グループ|id)$/.test(nk)) freq[k]=(freq[k]||0)+1;
+      }
+    }
+    const k = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0];
+    return k || null;
+  };
+  const idKey = guessIdKey();
+  if (idKey){
+    const groups = {};
+    for (const r of rows){
+      const id = (r[idKey] ?? '').toString();
+      if (!id) continue;
+      (groups[id]||(groups[id]=[])).push(r);
+    }
+    const out = [];
+    for (const id of Object.keys(groups)){
+      const g = groups[id];
+      const mem = [];
+      for (const r of g){
+        const keys = Object.keys(r);
+        const pickCol = (want)=>{
+          const pri = want==='name'
+            ? [/^(名前|ポケモン|name|pokemon|poke)$/i]
+            : want==='item'
+            ? [/^(持ち物|item|もちもの)$/i]
+            : [/^(テラタイプ|テラ|tera)$/i];
+          for (const p of pri){ const hit = keys.find(k=> p.test(k)); if (hit) return (r[hit]??'').toString().trim(); }
+          for (const k of keys){ const nk=norm(k); if (want==='name'&&nk==='name') return (r[k]??'').toString().trim(); if (want==='item'&&nk==='item') return (r[k]??'').toString().trim(); if (want==='tera'&&nk==='tera') return (r[k]??'').toString().trim(); }
+          return '';
+        };
+        const name = pickCol('name'); if (!name) continue;
+        mem.push({name, item:pickCol('item'), tera:pickCol('tera')});
+        if (mem.length>=6) break;
+      }
+      if (mem.length){ out.push({ meta:{season:'',rule:'',rank:''}, members:mem }); }
+    }
+    if (out.length) return out;
+  }
+  return [];
+}
+
+async function handleLoad(){
+  const file = document.getElementById('fileInput').files[0];
+  const pasted = document.getElementById('pasteBox').value.trim();
+  const info = document.getElementById('loadInfo');
+
+  let txt = '';
+  if (file){ txt = await file.text(); }
+  else if (pasted){ txt = pasted; }
+  else { info.textContent = '入力がありません'; return; }
+
+  // JSON優先
+  let teams = [];
+  try {
+    const json = JSON.parse(txt);
+    if (json && json.teams){
+      teams = normalizeFromPKDB(json);
+    } else {
+      // 配列JSONなど別構造のときは rows と見なして normalizeTeams
+      const asRows = Array.isArray(json) ? json : (Array.isArray(json.rows) ? json.rows : null);
+      if (asRows) teams = normalizeTeams(asRows);
+    }
+  } catch(e){ /* JSONでなければCSV/TSVへ */ }
+
+  if (!teams.length){
+    const rows = parseCSV(txt);
+    teams = normalizeTeams(rows);
+  }
+
+  if (!teams.length){
+    info.textContent = '0件：形式を確認してください（JSONの波括弧やCSV区切りなど）';
+  } else {
+    info.textContent = `読み込み成功：${teams.length}件`;
+  }
+  setTeams(teams);
+}
+
+function clearLoad(){
+  document.getElementById('fileInput').value = '';
+  document.getElementById('pasteBox').value = '';
+  document.getElementById('loadInfo').textContent = '未読込';
+  setTeams([]);
+}
+
+document.getElementById('loadBtn').addEventListener('click', handleLoad);
+
+document.getElementById('clearBtn').addEventListener('click', clearLoad);
+
+// =====================
+// 構築データ: 表示・検索
+// =====================
+function renderTeamsList(){
+  const box = document.getElementById('teamsList');
+  const f = (document.getElementById('filterBox').value||'').trim().toLowerCase();
+  box.innerHTML = '';
+  const src = !f ? ALL_TEAMS : ALL_TEAMS.filter(t => {
+    const inMeta = `${t.meta.season} ${t.meta.rule} ${t.meta.rank} ${t.meta.rating}`.toLowerCase();
+    const inMembers = t.members.map(m=>`${m.name} ${m.item} ${m.tera}`.toLowerCase()).join(' ');
+    return inMeta.includes(f) || inMembers.includes(f);
+  });
+  document.getElementById('filterCount').textContent = `${src.length} / ${ALL_TEAMS.length}`;
+
+  if (!src.length){
+    const div = document.createElement('div');
+    div.className = 'muted';
+    div.textContent = '0件です。フィルタやデータ形式をご確認ください。';
+    box.appendChild(div);
+    return;
+  }
+
+  for (const t of src){
+    const card = document.createElement('div');
+    card.className = 'team-card';
+
+    const head = document.createElement('div');
+    head.className = 'tight';
+    head.innerHTML = `<span class="pill">S${t.meta.season||'?'} / ${t.meta.rule||''}</span>`+
+                     (t.meta.rank?`<span class="pill">順位: ${t.meta.rank}</span>`:'')+
+                     (t.meta.rating?`<span class="pill">レート: ${t.meta.rating}</span>`:'');
+    card.appendChild(head);
+
+    const mons = document.createElement('div');
+    mons.className = 'mons';
+    t.members.forEach((m, idx) => {
+      const d = document.createElement('div');
+      d.className = 'mon';
+      d.innerHTML = `<div style="font-weight:700">${idx+1}. ${escapeHtml(m.name||'-')}</div>`+
+                    `<div class="muted">${escapeHtml(m.item||'')}</div>`+
+                    `<div class="muted">テラ: ${escapeHtml(m.tera||'')}</div>`;
+      mons.appendChild(d);
+    });
+    card.appendChild(mons);
+
+    const btns = document.createElement('div');
+    btns.className = 'tight';
+    btns.style.marginTop = '8px';
+    const apply = document.createElement('button');
+    apply.className = 'btn';
+    apply.textContent = 'このチームをパーティへ反映';
+    apply.addEventListener('click', ()=>applyTeamToParty(t));
+    btns.appendChild(apply);
+
+    card.appendChild(btns);
+    box.appendChild(card);
+  }
+}
+
+document.getElementById('filterBox').addEventListener('input', renderTeamsList);
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"]g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+}
+
+// =====================
+// パーティ: 6スロット
+// =====================
+const partyGrid = document.getElementById('partyGrid');
+
+function buildPartyUI(){
+  partyGrid.innerHTML = '';
+  for (let i=1;i<=6;i++){
+    const c = document.createElement('div');
+    c.className = 'card';
+    c.innerHTML = `
+      <div class="slot-h"><strong>スロット ${i}</strong> <small id="p${i}Meta" class="muted"></small></div>
+      <div class="row"><label>名前</label><input id="p${i}Name" type="text" placeholder="例：サーフゴー"/></div>
+      <div class="row"><label>持ち物</label><input id="p${i}Item" type="text"/></div>
+      <div class="row"><label>テラタイプ</label><input id="p${i}Tera" type="text"/></div>
+    `;
+    partyGrid.appendChild(c);
+  }
+}
+
+buildPartyUI();
+
+function applyTeamToParty(team){
+  // タブ切替（パーティへ）
+  tabs.forEach(b=>b.classList.remove('active'));
+  document.querySelector('.tab[data-tab="party"]').classList.add('active');
+  Object.values(sections).forEach(sec=>sec.classList.add('hidden'));
+  sections.party.classList.remove('hidden');
+
+  const mem = team.members || [];
+  for (let i=1;i<=6;i++){
+    const m = mem[i-1] || {name:'',item:'',tera:''};
+    document.getElementById(`p${i}Name`).value = m.name||'';
+    document.getElementById(`p${i}Item`).value = m.item||'';
+    document.getElementById(`p${i}Tera`).value = m.tera||'';
+    document.getElementById(`p${i}Meta`).textContent = `S${team.meta.season||'?'} ${team.meta.rule||''}` + (team.meta.rank?` / 順位:${team.meta.rank}`:'');
+  }
+  refreshPartyJSON();
+}
+
+function getParty(){
+  const arr = [];
+  for (let i=1;i<=6;i++){
+    arr.push({
+      name: document.getElementById(`p${i}Name`).value.trim(),
+      item: document.getElementById(`p${i}Item`).value.trim(),
+      tera: document.getElementById(`p${i}Tera`).value.trim(),
+    });
+  }
+  return arr;
+}
+
+function refreshPartyJSON(){
+  const data = { members: getParty() };
+  document.getElementById('partyJSON').value = JSON.stringify(data, null, 2);
+}
+
+for (let i=1;i<=6;i++){
+  ['p'+i+'Name','p'+i+'Item','p'+i+'Tera'].forEach(id=>{
+    document.addEventListener('input', (e)=>{
+      if (e.target && e.target.id === id) refreshPartyJSON();
+    });
+  });
+}
+
+document.getElementById('copyPartyJSON').addEventListener('click', ()=>{
+  const ta = document.getElementById('partyJSON');
+  ta.select();
+  document.execCommand('copy');
+});
+
+document.getElementById('clearParty').addEventListener('click', ()=>{
+  buildPartyUI();
+  refreshPartyJSON();
+});
+
+// 初期
+refreshPartyJSON();
+
+</script>
 </body>
 </html>
-
