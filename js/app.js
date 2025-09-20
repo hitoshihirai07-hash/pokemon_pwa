@@ -1,9 +1,3 @@
-/* =========================================================
-   ★ 最上部固定タイマー（全画面共通・タブ切替でも継続）
-   - 既存に timerMin/timerStart/timerStop/timerReset/timerRemain/timerState/badgeTimer が
-     ある場合は自動で“上部へ移動”、無ければ自動生成します。
-   - app.js の“先頭”で初期化し、以降の処理より前に常駐。
-========================================================= */
 (function dockTimerTop(){
   if (document.getElementById('timerTopDock')) return;
   const bar = document.createElement('div');
@@ -998,3 +992,4 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.error);
   });
 }
+
