@@ -1,8 +1,10 @@
-const CACHE_NAME = 'poke-calc-cache-v16';
+const CACHE_NAME = 'poke-calc-cache-v1';
 const ASSETS = [
   './',
   './index.html',
-  './app.js',
+  './css/styles.css',
+  './js/parser.js',
+  './js/app.js',
   './manifest.json',
   './pokemon_master.json'
   // 画像フォルダを使うなら: './imgs/...'
@@ -33,6 +35,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
   }
 });
+
 
 
 
