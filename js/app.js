@@ -142,7 +142,9 @@ function setEV(side,k,v){ set(`${side}_ev_${k}`,v); recalcSide(side); }
 ['atk','def'].forEach(s=>{
   STAT_ORDER.forEach(k=>{
     ['base','iv','ev','nat'].forEach(t=>{
-      const id=`${s}_${t}_${k}`; document.addEventListener('input',e=>{ if(e.target && e.target.id===id) recalcSide(s); });
+      const id=`${s}_${t}_${k}`; ['input','change'].forEach(ev=>{
+        document.addEventListener(ev, e=>{ if(e.target && e.target.id===id) recalcSide(s); });
+      });
     });
   });
 });
@@ -225,7 +227,9 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
   const power=val('power',80), stab=+document.getElementById('stab').value, typeMul=+document.getElementById('typeMul').value;
   const rankAtk=RANK[document.getElementById('atkRank').value], rankDef=RANK[document.getElementById('defRank').value];
   const extra=val('extra',1), mode=document.getElementById('mode').value, moveType=document.getElementById('moveType').value;
-  const weather=document.getElementById('weather').value, crit=(+document.getElementById('crit').value)>1, hits=+document.getElementById('hits').value;
+  const weather=document.getElementById('weather').value;
+  const critEl=document.getElementById('crit'); const crit=critEl?(critEl.type==='checkbox'?critEl.checked:(+critEl.value>1)):false;
+  const hits=+document.getElementById('hits').value;
   const rockInSand=document.getElementById('chkRockInSand')?.checked, iceInSnow=document.getElementById('chkIceInSnow')?.checked;
 
   const [mn,mx]=dmgRange({power,atk:atkStat,def:defStat0,stab,typeMul,rankAtk,rankDef,extra,mode,crit,moveType,weather,rockInSand,iceInSnow});
@@ -254,12 +258,12 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
 });
 
 /* =========================
-   1対3：実数値計算 UI を追加（攻撃=自分：攻撃/特攻、相手：HP/防御/特防）
+   1対3：実数値計算 UI（攻：攻撃/特攻、相手：HP/防御/特防）＋同期
 ========================= */
 (function enhanceV13(){
   const sec = document.getElementById('tab-v13'); if(!sec) return;
 
-  // --- 自分（攻撃側）検索とフォーム ---
+  // 自分（攻撃側）
   if(!document.getElementById('v13_self_search')){
     const selfCard = document.createElement('div');
     selfCard.className='card small';
@@ -278,9 +282,9 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
     `;
     sec.querySelector('.card.small')?.insertAdjacentElement('beforebegin', selfCard);
   }
-  buildV13SelfForm(); // 攻撃/特攻のフォーム
+  buildV13SelfForm();
 
-  // --- 相手×3：各カード先頭に検索＆フォームを差し込み ---
+  // 相手×3
   [1,2,3].forEach(i=>{
     const outEl=document.getElementById(`v13_out${i}`);
     const holder = outEl?.closest('.card.small');
@@ -291,32 +295,57 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
         <div id="v13_foe_form_${i}" class="mt8"></div>
       `;
       holder.insertBefore(wrap, holder.firstChild);
-      buildV13FoeForm(i); // HP/防御/特防のフォーム
+      buildV13FoeForm(i);
     }
   });
 
-  // 入力イベントで再計算
-  document.addEventListener('input', (e)=>{
+  // 1対3入力イベント（input / change 両方）
+  function v13EventHandler(e){
     const id = e.target?.id || '';
+
     // 自分側
-    if(id==='v13_self_search'){ const mon = findMonByName(e.target.value.trim()) || null; if(mon) applyV13SelfFromDex(mon); }
-    if(id.startsWith('v13_self_')){ recalcV13Self(); syncV13ModeToStats(); }
+    if(id === 'v13_self_search'){
+      const mon = findMonByName(e.target.value.trim()) || null;
+      if(mon) applyV13SelfFromDex(mon);
+    }
+    if(id.startsWith('v13_self_')){
+      recalcV13Self();
+      syncV13ModeToStats();
+    }
 
     // 相手側
     const m = id.match(/^v13_enemy_search_(\d)$/);
-    if(m){ const idx=Number(m[1]); const mon = findMonByName(e.target.value.trim()) || null; if(mon) applyV13FoeFromDex(idx, mon); }
+    if(m){
+      const idx = Number(m[1]);
+      const mon = findMonByName(e.target.value.trim()) || null;
+      if(mon) applyV13FoeFromDex(idx, mon);
+    }
     const m2 = id.match(/^v13_foe(\d)_(base|iv|ev|nat)_(HP|防御|特防)$/);
-    if(m2){ const idx=Number(m2[1]); recalcV13Foe(idx); syncV13ModeToStats(); }
+    if(m2){
+      const idx = Number(m2[1]);
+      recalcV13Foe(idx);
+      syncV13ModeToStats();
+    }
 
-    // モード切替で攻撃/防御の採用値を更新
-    if(id==='v13_mode'){ syncV13ModeToStats(); }
+    if(id === 'v13_mode'){
+      syncV13ModeToStats();
+    }
+  }
+  ['input','change'].forEach(ev => document.addEventListener(ev, v13EventHandler));
+
+  // 計算ボタン：実数値再計算→同期→ダメ計
+  document.getElementById('btnV13')?.addEventListener('click', ()=>{
+    recalcV13Self();
+    [1,2,3].forEach(recalcV13Foe);
+    syncV13ModeToStats();
+    [1,2,3].forEach(dmgRangeV13);
   });
 
   // 初期同期
   syncV13ModeToStats();
 })();
 
-// --- 自分フォーム（攻撃/特攻） ---
+// 自分フォーム（攻撃/特攻）
 function buildV13SelfForm(){
   const box=document.getElementById('v13_self_form'); if(!box) return;
   box.innerHTML = `
@@ -339,9 +368,14 @@ function buildV13SelfForm(){
 }
 function recalcV13Self(){
   ['攻撃','特攻'].forEach(k=>{
-    const base=val(`v13_self_base_${k}`,50), iv=val(`v13_self_iv_${k}`,31), ev=val(`v13_self_ev_${k}`,0), nat=val(`v13_self_nat_${k}`,1.0);
-    const final=calcStat(base,iv,ev,50,nat,false); set(`v13_self_final_${k}`,final);
+    const base=val(`v13_self_base_${k}`,50),
+          iv  =val(`v13_self_iv_${k}`,31),
+          ev  =val(`v13_self_ev_${k}`,0),
+          nat =val(`v13_self_nat_${k}`,1.0);
+    const final=calcStat(base,iv,ev,50,nat,false);
+    set(`v13_self_final_${k}`,final);
   });
+  syncV13ModeToStats();
 }
 function applyV13SelfFromDex(mon){
   ['攻撃','特攻'].forEach(k=>{
@@ -350,7 +384,7 @@ function applyV13SelfFromDex(mon){
   recalcV13Self(); syncV13ModeToStats();
 }
 
-// --- 相手フォーム（HP/防御/特防） ---
+// 相手フォーム（HP/防御/特防）
 function buildV13FoeForm(i){
   const box=document.getElementById(`v13_foe_form_${i}`); if(!box) return;
   box.innerHTML = `
@@ -376,7 +410,6 @@ function recalcV13Foe(i){
   const hp = doOne('HP',true);
   const df = doOne('防御',false);
   const sd = doOne('特防',false);
-  // 内部の採用値（既存の入出力に合わせる）
   set(`v13_hp${i}`, hp);
   const mode=document.getElementById('v13_mode')?.value || 'phys';
   set(`v13_def${i}`, mode==='phys'? df : sd);
@@ -388,7 +421,7 @@ function applyV13FoeFromDex(i, mon){
   recalcV13Foe(i); syncV13ModeToStats();
 }
 
-// モード切替に合わせて、攻撃と各相手の採用ステを更新
+// モードに合わせて採用値更新
 function syncV13ModeToStats(){
   const mode=document.getElementById('v13_mode')?.value || 'phys';
   const atkPhys = val('v13_self_final_攻撃',172);
@@ -400,17 +433,23 @@ function syncV13ModeToStats(){
     set(`v13_def${i}`, mode==='phys'? df : sd);
   });
 }
-
-// 1対3ダメージ計算
 function dmgRangeV13(i){
-  const atk=val('v13_atk',172), power=val('v13_power',80), stab=+val('v13_stab',1.5);
-  const rankAtk=RANK[String(val('v13_atkRank',0))];
-  const extra=val('v13_extra',1);
-  const mode=document.getElementById('v13_mode').value, hits=+val('v13_hits',1), moveType=document.getElementById('v13_moveType','ノーマル');
-  const def=val(`v13_def${i}`,120), rankDef=RANK[String(val(`v13_defRank${i}`,0))], hp=val(`v13_hp${i}`,155);
-  const typeMul=+val(`v13_type${i}`,1), weather=document.getElementById(`v13_weather${i}`).value;
-  const rockInSand=document.getElementById(`v13_rock${i}`)?.checked, iceInSnow=document.getElementById(`v13_ice${i}`)?.checked;
-  const crit=(+val('v13_crit',1)>1);
+  const atk   = val('v13_atk',172);
+  const power = val('v13_power',80);
+  const stab  = +val('v13_stab',1.5);
+  const rankAtk = RANK[String(val('v13_atkRank',0))];
+  const extra   = val('v13_extra',1);
+  const mode    = document.getElementById('v13_mode').value;
+  const hits    = +val('v13_hits',1);
+  const moveType = document.getElementById('v13_moveType')?.value || 'ノーマル';
+  const def    = val(`v13_def${i}`,120);
+  const rankDef= RANK[String(val(`v13_defRank${i}`,0))];
+  const hp     = val(`v13_hp${i}`,155);
+  const typeMul= +val(`v13_type${i}`,1);
+  const weather= document.getElementById(`v13_weather${i}`).value;
+  const rockInSand = document.getElementById(`v13_rock${i}`)?.checked;
+  const iceInSnow  = document.getElementById(`v13_ice${i}`)?.checked;
+  const critEl=document.getElementById('v13_crit'); const crit=critEl?(critEl.type==='checkbox'?critEl.checked:(+critEl.value>1)):false;
 
   const [mn,mx]=dmgRange({power,atk,def,stab,typeMul,rankAtk,rankDef,extra,mode,crit,moveType,weather,rockInSand,iceInSnow});
   const totMin=mn*hits, totMax=mx*hits;
