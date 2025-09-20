@@ -247,23 +247,80 @@ async function loadDexFromMaster() {
     const res = await fetch('./pokemon_master.json?ver=' + APP_VER, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const src = await res.json();
-    DEX = src.map(p => ({ no: toNumber(p.No), name: String(p.名前).trim(), types:[p.タイプ1||null,p.タイプ2||null],
-      base:{HP:p.HP, 攻撃:p.攻撃, 防御:p.防御, 特攻:p.特攻, 特防:p.特防, 素早:p.素早 ?? p.素早さ} }));
-    NAME_INDEX = DEX.map(d => ({ no:d.no, name:d.name, norm: normalizeJP(d.name) }));
-    const dl = $('pkmnlist'); dl.innerHTML=''; DEX.forEach(d=>{ const o=document.createElement('option'); o.value=d.name; dl.appendChild(o); });
-    const info = $('dexInfo'); if(info) info.innerHTML = `<span class="pill">図鑑データ: ${DEX.length}件 読込OK</span>`;
-  } catch (err) {
-    console.warn('pokemon_master.json 読込失敗:', err);
-    DEX = []; NAME_INDEX = [];
-    const info = $('dexInfo'); if(info) info.innerHTML = `<span class="pill" style="background:#ffe5e5;color:#b00020">図鑑データ読込エラー</span>`;
+    // JSONのキー揺れ対策（こうげき/攻/ A など）
+function pick(p, keys, def=null){
+  for(const k of keys){ if(p[k] != null) return p[k]; }
+  return def;
+}
+   DEX = src.map(p => {
+  const no = toNumber(p.No ?? p.no ?? p.dex ?? p.Dex);
+  const name = String(p.名前 ?? p.name ?? '').trim();
+  // 種族値キーのブレを吸収
+  const base = {
+    HP:  pick(p, ['HP','hp']),
+    攻撃: pick(p, ['攻撃','こうげき','攻','A','a']),
+    防御: pick(p, ['防御','ぼうぎょ','防','B','b']),
+    特攻: pick(p, ['特攻','とくこう','C','c']),
+    特防: pick(p, ['特防','とくぼう','D','d']),
+    素早: pick(p, ['素早','素早さ','すばやさ','S','s'])
+  };
+  return {
+    no,
+    name,
+    types: [p.タイプ1 ?? p.type1 ?? null, p.タイプ2 ?? p.type2 ?? null],
+    base
+  };
+});
+// 図鑑パネル→各実数値計にベース値を流し込む
+function applyDexBase(){
+  const name = $('dexSearch').value.trim();
+  const d = pickDexByName(name);
+  if(!d){ alert('先に図鑑でポケモンを選んでください'); return; }
+
+  const sel = $('dexSendTarget').value; // 例: "atk-攻撃", "d2-特防"
+  const [dest, stat] = sel.split('-');  // dest: atk/def/d1/d2/d3
+
+  // ベース値（対象ステータス）
+  const val = d.base[stat];
+  if(val == null){ alert(`種族値「${stat}」が見つかりませんでした`); return; }
+
+  // 各フォームの「種族値」欄へ適用
+  const map = {
+    'atk': { '攻撃':'atkBase', '特攻':'atkBase' },
+    'def': { 'HP':'defBase', '防御':'defBase', '特防':'defBase' },
+    'd1':  { 'HP':'d1Base',  '防御':'d1Base',  '特防':'d1Base'  },
+    'd2':  { 'HP':'d2Base',  '防御':'d2Base',  '特防':'d2Base'  },
+    'd3':  { 'HP':'d3Base',  '防御':'d3Base',  '特防':'d3Base'  },
+  };
+
+  const targetInputId = map[dest]?.[stat];
+  if(!targetInputId){ alert('反映先の項目が見つかりませんでした'); return; }
+
+  $(targetInputId).value = val;
+
+  // ちょい親切：反映しただけで終わらず、結果欄にも見えるように
+  if(dest === 'atk'){
+    // 攻撃側の実数値計を計算して反映
+    $('atkIV').value = 31; // 好みで初期値
+    $('atkEV').value = 252;
+    $('atkCalcTarget').value = stat;
+    $('atkCalcOut').textContent = `ベース: ${val}`;
+  }else if(dest === 'def'){
+    $('defIV').value = 31;
+    $('defEV').value = 0;
+    $('defCalcTarget').value = stat;
+    $('defCalcOut').textContent = `ベース: ${val}`;
+  }else{
+    const i = Number(dest.slice(1));
+    $(`d${i}IV`).value = 31;
+    $(`d${i}EV`).value = 0;
+    $(`d${i}CalcTarget`).value = stat;
+    $(`d${i}CalcOut`).textContent = `ベース: ${val}`;
   }
+
+  alert(`「${d.name}」の種族値（${stat}=${val}）を反映しました`);
 }
-function findCandidates(q, limit=10){
-  const n = normalizeJP(q); if(!n) return [];
-  const isNum = /^\d+$/.test(q.trim());
-  return NAME_INDEX.filter(r=>isNum?String(r.no).includes(q.trim()):r.norm.includes(n)).slice(0,limit).map(r=>({no:r.no,name:r.name}));
-}
-function pickDexByName(name){ return DEX.find(x=>x.name===name)||null; }
+
 
 const dexSg = $('dexSuggest');
 $('dexSearch').addEventListener('input', (e) => {
@@ -440,3 +497,4 @@ function resetTimer(){ stopTimer(false); const m=clamp(num('timerMin',10),0,999)
     console.error('初期化エラー:', e); alert('初期化に失敗しました：' + e.message);
   }
 })();
+
