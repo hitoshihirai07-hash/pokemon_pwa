@@ -164,132 +164,133 @@
     <div class="card"><h3>ログ</h3><textarea id="log" readonly></textarea></div>
   </section>
 
-  <!-- ===== 1対3（完全手入力） ===== -->
+  <!-- ===== 1対3（上：攻撃側、下：3体 横並び） ===== -->
   <section id="tab-multi" class="hidden">
-    <div class="grid grid-2">
-      <div class="card">
-        <h2>攻撃側（共通・手入力）</h2>
-        <div class="row3"><label>攻撃</label><input id="mAtkA" type="number" min="1" value="200"/><span class="muted">物理時に使用</span></div>
-        <div class="row3"><label>特攻</label><input id="mAtkS" type="number" min="1" value="200"/><span class="muted">特殊時に使用</span></div>
-        <div class="row"><label>技区分</label><select id="mCategory"><option>物理</option><option>特殊</option></select></div>
-        <div class="row"><label>威力</label><input id="mPower" type="number" min="1" value="50"/></div>
-        <div class="row"><label>技タイプ</label>
-          <select id="mMoveType">
-            <option>ノーマル</option><option>ほのお</option><option>みず</option><option>でんき</option><option>くさ</option><option>こおり</option>
-            <option>かくとう</option><option>どく</option><option>じめん</option><option>ひこう</option><option>エスパー</option><option>むし</option>
-            <option>いわ</option><option>ゴースト</option><option>ドラゴン</option><option>あく</option><option>はがね</option><option>フェアリー</option>
-          </select>
-        </div>
-        <div class="row"><label>STAB</label><select id="mStab"><option value="1.0">1.0</option><option value="1.5" selected>1.5</option><option value="2.0">2.0</option></select></div>
-        <div class="row"><label>天候</label><select id="mWeather"><option>なし</option><option>晴れ</option><option>雨</option><option>砂嵐</option><option>雪</option></select></div>
-        <div class="row"><label>アイテム</label><select id="mItem"><option>なし</option><option>こだわりハチマキ</option><option>こだわりメガネ</option><option>いのちのたま</option></select></div>
-        <div class="row"><label>状態</label><select id="mStatus"><option>通常</option><option>やけど</option></select></div>
-        <div class="row"><label>攻撃ランク</label><select id="mAtkStage"></select></div>
-        <div class="row"><label>連続回数</label><select id="mHits"></select></div>
-        <div class="row"><label>その他補正</label><input id="mOtherMul" type="number" step="0.05" min="0" value="1.0"/></div>
-        <div class="tight" style="margin-top:10px">
-          <button class="btn" onclick="mPreviewAll()">3体まとめて計算</button>
-          <button class="btn btn-ghost" onclick="mAttackAll()">3体まとめて攻撃</button>
-          <button class="btn btn-ghost" onclick="mResetAll()">HP/ログ リセット</button>
-        </div>
+    <!-- 上：攻撃側（共通） -->
+    <div class="card">
+      <h2>攻撃側（共通・手入力）</h2>
+      <div class="row3"><label>攻撃</label><input id="mAtkA" type="number" min="1" value="200"/><span class="muted">物理時に使用</span></div>
+      <div class="row3"><label>特攻</label><input id="mAtkS" type="number" min="1" value="200"/><span class="muted">特殊時に使用</span></div>
+      <div class="row"><label>技区分</label><select id="mCategory"><option>物理</option><option>特殊</option></select></div>
+      <div class="row"><label>威力</label><input id="mPower" type="number" min="1" value="50"/></div>
+      <div class="row"><label>技タイプ</label>
+        <select id="mMoveType">
+          <option>ノーマル</option><option>ほのお</option><option>みず</option><option>でんき</option><option>くさ</option><option>こおり</option>
+          <option>かくとう</option><option>どく</option><option>じめん</option><option>ひこう</option><option>エスパー</option><option>むし</option>
+          <option>いわ</option><option>ゴースト</option><option>ドラゴン</option><option>あく</option><option>はがね</option><option>フェアリー</option>
+        </select>
       </div>
-
-      <div class="grid grid-3">
-        <!-- 相手1 -->
-        <div class="card">
-          <h3>相手1</h3>
-          <div class="row"><label>名前</label><input id="d1Name" list="pkmnlist" placeholder="例：サーフゴー"/></div>
-          <div id="d1DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
-          <div class="row"><label>HP</label><input id="d1HP" type="number" min="1" value="155"/></div>
-          <div class="row"><label>防御</label><input id="d1B" type="number" min="1" value="120"/></div>
-          <div class="row"><label>特防</label><input id="d1D" type="number" min="1" value="120"/></div>
-          <div class="row"><label>タイプ相性</label><select id="d1TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
-          <div class="row"><label>防御ランク</label><select id="d1DefStage"></select></div>
-          <div class="row"><label>砂嵐・岩特防1.5</label><select id="d1SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
-          <div class="row"><label>雪・氷防御1.5</label><select id="d1SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
-          <details style="margin-top:6px">
-            <summary>実数値計（HP/防御/特防）</summary>
-            <div class="row3"><label>対象</label><select id="d1CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
-            <div class="row3"><label>種族値</label><input id="d1Base" type="number" min="1" max="255" value="100"/><span></span></div>
-            <div class="row3"><label>個体値</label><input id="d1IV" type="number" min="0" max="31" value="31"/><span></span></div>
-            <div class="row3"><label>努力値</label><input id="d1EV" type="number" min="0" max="252" value="0"/><span></span></div>
-            <div class="row3"><label>補正（HP以外）</label><select id="d1Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(1)">計算して反映</button></div>
-            <div class="row"><label>結果</label><div id="d1CalcOut" class="pill">—</div></div>
-          </details>
-          <div class="row"><label>HPバー</label><div id="d1HpText">0 / 0 (0%)</div></div>
-          <div class="hpbar"><div id="d1HpFill"></div></div>
-          <div class="tight" style="margin-top:8px">
-            <button class="btn" onclick="mPreviewOne(1)">計算</button>
-            <button class="btn btn-ghost" onclick="mAttackOne(1)">攻撃</button>
-            <button class="btn btn-ghost" onclick="mResetOne(1)">リセット</button>
-          </div>
-          <div id="d1Result" class="muted" style="margin-top:6px">—</div>
-        </div>
-
-        <!-- 相手2 -->
-        <div class="card">
-          <h3>相手2</h3>
-          <div class="row"><label>名前</label><input id="d2Name" list="pkmnlist"/></div>
-          <div id="d2DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
-          <div class="row"><label>HP</label><input id="d2HP" type="number" min="1" value="155"/></div>
-          <div class="row"><label>防御</label><input id="d2B" type="number" min="1" value="120"/></div>
-          <div class="row"><label>特防</label><input id="d2D" type="number" min="1" value="120"/></div>
-          <div class="row"><label>タイプ相性</label><select id="d2TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
-          <div class="row"><label>防御ランク</label><select id="d2DefStage"></select></div>
-          <div class="row"><label>砂嵐・岩特防1.5</label><select id="d2SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
-          <div class="row"><label>雪・氷防御1.5</label><select id="d2SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
-          <details style="margin-top:6px">
-            <summary>実数値計（HP/防御/特防）</summary>
-            <div class="row3"><label>対象</label><select id="d2CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
-            <div class="row3"><label>種族値</label><input id="d2Base" type="number" min="1" max="255" value="100"/><span></span></div>
-            <div class="row3"><label>個体値</label><input id="d2IV" type="number" min="0" max="31" value="31"/><span></span></div>
-            <div class="row3"><label>努力値</label><input id="d2EV" type="number" min="0" max="252" value="0"/><span></span></div>
-            <div class="row3"><label>補正（HP以外）</label><select id="d2Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(2)">計算して反映</button></div>
-            <div class="row"><label>結果</label><div id="d2CalcOut" class="pill">—</div></div>
-          </details>
-          <div class="row"><label>HPバー</label><div id="d2HpText">0 / 0 (0%)</div></div>
-          <div class="hpbar"><div id="d2HpFill"></div></div>
-          <div class="tight" style="margin-top:8px">
-            <button class="btn" onclick="mPreviewOne(2)">計算</button>
-            <button class="btn btn-ghost" onclick="mAttackOne(2)">攻撃</button>
-            <button class="btn btn-ghost" onclick="mResetOne(2)">リセット</button>
-          </div>
-          <div id="d2Result" class="muted" style="margin-top:6px">—</div>
-        </div>
-
-        <!-- 相手3 -->
-        <div class="card">
-          <h3>相手3</h3>
-          <div class="row"><label>名前</label><input id="d3Name" list="pkmnlist"/></div>
-          <div id="d3DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
-          <div class="row"><label>HP</label><input id="d3HP" type="number" min="1" value="155"/></div>
-          <div class="row"><label>防御</label><input id="d3B" type="number" min="1" value="120"/></div>
-          <div class="row"><label>特防</label><input id="d3D" type="number" min="1" value="120"/></div>
-          <div class="row"><label>タイプ相性</label><select id="d3TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
-          <div class="row"><label>防御ランク</label><select id="d3DefStage"></select></div>
-          <div class="row"><label>砂嵐・岩特防1.5</label><select id="d3SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
-          <div class="row"><label>雪・氷防御1.5</label><select id="d3SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
-          <details style="margin-top:6px">
-            <summary>実数値計（HP/防御/特防）</summary>
-            <div class="row3"><label>対象</label><select id="d3CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
-            <div class="row3"><label>種族値</label><input id="d3Base" type="number" min="1" max="255" value="100"/><span></span></div>
-            <div class="row3"><label>個体値</label><input id="d3IV" type="number" min="0" max="31" value="31"/><span></span></div>
-            <div class="row3"><label>努力値</label><input id="d3EV" type="number" min="0" max="252" value="0"/><span></span></div>
-            <div class="row3"><label>補正（HP以外）</label><select id="d3Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(3)">計算して反映</button></div>
-            <div class="row"><label>結果</label><div id="d3CalcOut" class="pill">—</div></div>
-          </details>
-          <div class="row"><label>HPバー</label><div id="d3HpText">0 / 0 (0%)</div></div>
-          <div class="hpbar"><div id="d3HpFill"></div></div>
-          <div class="tight" style="margin-top:8px">
-            <button class="btn" onclick="mPreviewOne(3)">計算</button>
-            <button class="btn btn-ghost" onclick="mAttackOne(3)">攻撃</button>
-            <button class="btn btn-ghost" onclick="mResetOne(3)">リセット</button>
-          </div>
-          <div id="d3Result" class="muted" style="margin-top:6px">—</div>
-        </div>
+      <div class="row"><label>STAB</label><select id="mStab"><option value="1.0">1.0</option><option value="1.5" selected>1.5</option><option value="2.0">2.0</option></select></div>
+      <div class="row"><label>天候</label><select id="mWeather"><option>なし</option><option>晴れ</option><option>雨</option><option>砂嵐</option><option>雪</option></select></div>
+      <div class="row"><label>アイテム</label><select id="mItem"><option>なし</option><option>こだわりハチマキ</option><option>こだわりメガネ</option><option>いのちのたま</option></select></div>
+      <div class="row"><label>状態</label><select id="mStatus"><option>通常</option><option>やけど</option></select></div>
+      <div class="row"><label>攻撃ランク</label><select id="mAtkStage"></select></div>
+      <div class="row"><label>連続回数</label><select id="mHits"></select></div>
+      <div class="row"><label>その他補正</label><input id="mOtherMul" type="number" step="0.05" min="0" value="1.0"/></div>
+      <div class="tight" style="margin-top:10px">
+        <button class="btn" onclick="mPreviewAll()">3体まとめて計算</button>
+        <button class="btn btn-ghost" onclick="mAttackAll()">3体まとめて攻撃</button>
+        <button class="btn btn-ghost" onclick="mResetAll()">HP/ログ リセット</button>
       </div>
     </div>
-    <div class="card"><h3>ログ（1対3）</h3><textarea id="mLog" readonly></textarea></div>
+
+    <!-- 下：3体 横並び -->
+    <div class="grid grid-3" style="margin-top:12px">
+      <!-- 相手1 -->
+      <div class="card">
+        <h3>相手1</h3>
+        <div class="row"><label>名前</label><input id="d1Name" list="pkmnlist" placeholder="例：サーフゴー"/></div>
+        <div id="d1DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
+        <div class="row"><label>HP</label><input id="d1HP" type="number" min="1" value="155"/></div>
+        <div class="row"><label>防御</label><input id="d1B" type="number" min="1" value="120"/></div>
+        <div class="row"><label>特防</label><input id="d1D" type="number" min="1" value="120"/></div>
+        <div class="row"><label>タイプ相性</label><select id="d1TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
+        <div class="row"><label>防御ランク</label><select id="d1DefStage"></select></div>
+        <div class="row"><label>砂嵐・岩特防1.5</label><select id="d1SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
+        <div class="row"><label>雪・氷防御1.5</label><select id="d1SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
+        <details style="margin-top:6px">
+          <summary>実数値計（HP/防御/特防）</summary>
+          <div class="row3"><label>対象</label><select id="d1CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
+          <div class="row3"><label>種族値</label><input id="d1Base" type="number" min="1" max="255" value="100"/><span></span></div>
+          <div class="row3"><label>個体値</label><input id="d1IV" type="number" min="0" max="31" value="31"/><span></span></div>
+          <div class="row3"><label>努力値</label><input id="d1EV" type="number" min="0" max="252" value="0"/><span></span></div>
+          <div class="row3"><label>補正（HP以外）</label><select id="d1Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(1)">計算して反映</button></div>
+          <div class="row"><label>結果</label><div id="d1CalcOut" class="pill">—</div></div>
+        </details>
+        <div class="row"><label>HPバー</label><div id="d1HpText">0 / 0 (0%)</div></div>
+        <div class="hpbar"><div id="d1HpFill"></div></div>
+        <div class="tight" style="margin-top:8px">
+          <button class="btn" onclick="mPreviewOne(1)">計算</button>
+          <button class="btn btn-ghost" onclick="mAttackOne(1)">攻撃</button>
+          <button class="btn btn-ghost" onclick="mResetOne(1)">リセット</button>
+        </div>
+        <div id="d1Result" class="muted" style="margin-top:6px">—</div>
+      </div>
+
+      <!-- 相手2 -->
+      <div class="card">
+        <h3>相手2</h3>
+        <div class="row"><label>名前</label><input id="d2Name" list="pkmnlist"/></div>
+        <div id="d2DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
+        <div class="row"><label>HP</label><input id="d2HP" type="number" min="1" value="155"/></div>
+        <div class="row"><label>防御</label><input id="d2B" type="number" min="1" value="120"/></div>
+        <div class="row"><label>特防</label><input id="d2D" type="number" min="1" value="120"/></div>
+        <div class="row"><label>タイプ相性</label><select id="d2TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
+        <div class="row"><label>防御ランク</label><select id="d2DefStage"></select></div>
+        <div class="row"><label>砂嵐・岩特防1.5</label><select id="d2SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
+        <div class="row"><label>雪・氷防御1.5</label><select id="d2SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
+        <details style="margin-top:6px">
+          <summary>実数値計（HP/防御/特防）</summary>
+          <div class="row3"><label>対象</label><select id="d2CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
+          <div class="row3"><label>種族値</label><input id="d2Base" type="number" min="1" max="255" value="100"/><span></span></div>
+          <div class="row3"><label>個体値</label><input id="d2IV" type="number" min="0" max="31" value="31"/><span></span></div>
+          <div class="row3"><label>努力値</label><input id="d2EV" type="number" min="0" max="252" value="0"/><span></span></div>
+          <div class="row3"><label>補正（HP以外）</label><select id="d2Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(2)">計算して反映</button></div>
+          <div class="row"><label>結果</label><div id="d2CalcOut" class="pill">—</div></div>
+        </details>
+        <div class="row"><label>HPバー</label><div id="d2HpText">0 / 0 (0%)</div></div>
+        <div class="hpbar"><div id="d2HpFill"></div></div>
+        <div class="tight" style="margin-top:8px">
+          <button class="btn" onclick="mPreviewOne(2)">計算</button>
+          <button class="btn btn-ghost" onclick="mAttackOne(2)">攻撃</button>
+          <button class="btn btn-ghost" onclick="mResetOne(2)">リセット</button>
+        </div>
+        <div id="d2Result" class="muted" style="margin-top:6px">—</div>
+      </div>
+
+      <!-- 相手3 -->
+      <div class="card">
+        <h3>相手3</h3>
+        <div class="row"><label>名前</label><input id="d3Name" list="pkmnlist"/></div>
+        <div id="d3DexBox" class="muted" style="margin:-4px 0 6px;">—</div>
+        <div class="row"><label>HP</label><input id="d3HP" type="number" min="1" value="155"/></div>
+        <div class="row"><label>防御</label><input id="d3B" type="number" min="1" value="120"/></div>
+        <div class="row"><label>特防</label><input id="d3D" type="number" min="1" value="120"/></div>
+        <div class="row"><label>タイプ相性</label><select id="d3TypeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
+        <div class="row"><label>防御ランク</label><select id="d3DefStage"></select></div>
+        <div class="row"><label>砂嵐・岩特防1.5</label><select id="d3SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
+        <div class="row"><label>雪・氷防御1.5</label><select id="d3SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
+        <details style="margin-top:6px">
+          <summary>実数値計（HP/防御/特防）</summary>
+          <div class="row3"><label>対象</label><select id="d3CalcTarget"><option>HP</option><option>防御</option><option>特防</option></select><span class="muted">Lv50固定</span></div>
+          <div class="row3"><label>種族値</label><input id="d3Base" type="number" min="1" max="255" value="100"/><span></span></div>
+          <div class="row3"><label>個体値</label><input id="d3IV" type="number" min="0" max="31" value="31"/><span></span></div>
+          <div class="row3"><label>努力値</label><input id="d3EV" type="number" min="0" max="252" value="0"/><span></span></div>
+          <div class="row3"><label>補正（HP以外）</label><select id="d3Nature"><option value="1.1">1.1倍</option><option selected value="1.0">1.0倍</option><option value="0.9">0.9倍</option></select><button class="btn" onclick="mRunDefCalc(3)">計算して反映</button></div>
+          <div class="row"><label>結果</label><div id="d3CalcOut" class="pill">—</div></div>
+        </details>
+        <div class="row"><label>HPバー</label><div id="d3HpText">0 / 0 (0%)</div></div>
+        <div class="hpbar"><div id="d3HpFill"></div></div>
+        <div class="tight" style="margin-top:8px">
+          <button class="btn" onclick="mPreviewOne(3)">計算</button>
+          <button class="btn btn-ghost" onclick="mAttackOne(3)">攻撃</button>
+          <button class="btn btn-ghost" onclick="mResetOne(3)">リセット</button>
+        </div>
+        <div id="d3Result" class="muted" style="margin-top:6px">—</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px"><h3>ログ（1対3）</h3><textarea id="mLog" readonly></textarea></div>
   </section>
 
   <!-- ===== 図鑑 / パーティ ===== -->
@@ -425,3 +426,4 @@
 <script src="app.js"></script>
 </body>
 </html>
+
