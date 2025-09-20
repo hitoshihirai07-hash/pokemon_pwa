@@ -15,44 +15,87 @@ function ceilDiv(a,b){ b=b||1; return Math.floor((a+b-1)/b); }
 function downloadFile(name, text, mime){ var blob=new Blob([text],{type:mime||'application/json'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); },0); }
 
 /* =========================
-   最上部タイバー（常時表示）
+   最上部タイバー（常時表示・極小）
 ========================== */
 document.addEventListener('DOMContentLoaded', function(){
   if(byId('timerTopDock')) return;
+
+  // ▼ 既定でコンパクト表示（前回状態を復元）
+  var compactPref = (function(){
+    try{ return localStorage.getItem('pokeapp_timer_compact')==='1'; }catch(e){ return true; }
+  })();
+
   var bar=document.createElement('div');
   bar.id='timerTopDock';
-  bar.style.position='sticky'; bar.style.top='0'; bar.style.zIndex='999';
-  bar.style.background='#0f1115'; bar.style.color='#fff';
-  bar.style.borderBottom='1px solid #2a2d33'; bar.style.padding='8px 12px';
-  bar.style.display='flex'; bar.style.gap='8px'; bar.style.alignItems='center'; bar.style.flexWrap='wrap';
+  bar.style.position='sticky';
+  bar.style.top='0';
+  bar.style.zIndex='999';
+  bar.style.background='#0f1115';
+  bar.style.color='#fff';
+  bar.style.borderBottom='1px solid #2a2d33';
+  bar.style.padding='4px 8px';              // ← 小さく
+  bar.style.display='flex';
+  bar.style.gap='6px';                       // ← 小さく
+  bar.style.alignItems='center';
+  bar.style.flexWrap='wrap';
+  bar.style.fontSize='12px';                 // ← 小さく
 
-  function ensure(tag,id,txt){
-    var el=byId(id);
-    if(!el){
-      el=document.createElement(tag); el.id=id;
-      if(txt) el.textContent=txt;
-      if(tag==='input'){ el.type='number'; }
-      if(id==='timerMin'){ el.min='1'; el.value=el.value||'15'; el.style.width='80px'; el.title='分'; }
-      if(tag==='button'){ el.className='btn small'; }
-      if(id==='badgeTimer'){ el.className='pill'; }
-      if(id==='timerRemain') el.textContent='00:00';
-      if(id==='timerState')  el.textContent='停止中';
-    }
+  function mk(tag, id, text){
+    var el=document.createElement(tag);
+    if(id) el.id=id;
+    if(text!=null) el.textContent=text;
+    if(tag==='input'){ el.type='number'; el.className='small'; el.style.width='70px'; }
+    if(tag==='button'){ el.className='btn small'; el.style.padding='2px 6px'; el.style.fontSize='12px'; }
     return el;
   }
-  var label=document.createElement('span'); label.textContent='⏱ タイマー';
-  var badge=ensure('span','badgeTimer','タイマー: 停止');
-  var min=ensure('input','timerMin');
-  var start=ensure('button','timerStart','開始');
-  var stop=ensure('button','timerStop','停止');
-  var reset=ensure('button','timerReset','リセット');
-  var remain=ensure('span','timerRemain','00:00');
-  var state=ensure('span','timerState','停止中');
-  bar.appendChild(label); bar.appendChild(badge); bar.appendChild(min);
-  bar.appendChild(start); bar.appendChild(stop); bar.appendChild(reset);
-  bar.appendChild(remain); bar.appendChild(state);
+
+  var label = mk('span', null, '⏱');
+  var badge = mk('span', 'badgeTimer', 'タイマー: 停止');
+  var min   = mk('input','timerMin'); min.min='1'; min.value='15'; min.title='分';
+  var start = mk('button','timerStart','開始');
+  var stop  = mk('button','timerStop','停止');
+  var reset = mk('button','timerReset','0');
+  var remain= mk('span','timerRemain','00:00');
+  var state = mk('span','timerState','停止中');
+
+  // ▼ コンパクト切替ボタン（常に右端）
+  var toggle = mk('button','timerCompactToggle', compactPref?'展開':'縮小');
+  toggle.style.marginLeft='auto';
+
+  // 並べる
+  bar.appendChild(label);
+  bar.appendChild(badge);
+  bar.appendChild(min);
+  bar.appendChild(start);
+  bar.appendChild(stop);
+  bar.appendChild(reset);
+  bar.appendChild(remain);
+  bar.appendChild(state);
+  bar.appendChild(toggle);
+
   document.body.insertBefore(bar, document.body.firstChild);
+
+  // ▼ コンパクト表示：残り時間だけ + 切替ボタン
+  function setCompact(on){
+    var ids=['badgeTimer','timerMin','timerStart','timerStop','timerReset','timerState'];
+    for(var i=0;i<ids.length;i++){
+      var el=byId(ids[i]); if(el){ el.style.display = on ? 'none' : ''; }
+    }
+    // ラベルも小さく
+    label.style.display = on ? 'none' : '';
+    toggle.textContent = on ? '展開' : '縮小';
+    try{ localStorage.setItem('pokeapp_timer_compact', on?'1':'0'); }catch(e){}
+  }
+
+  toggle.addEventListener('click', function(){
+    var on = (toggle.textContent==='縮小'); // 今「縮小」と出てる＝これから縮小
+    setCompact(on);
+  }, false);
+
+  // 初期状態
+  setCompact(compactPref);
 });
+
 
 /* =========================
    タブ
@@ -1055,3 +1098,4 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(function(e){ console.warn(e); });
   });
 }
+
