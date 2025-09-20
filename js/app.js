@@ -1076,18 +1076,61 @@ buildBattleLogUI();
 var timer=null, remainMs=0;
 function updateTimerBadge(){ var b=byId('badgeTimer'); if(b) b.textContent='タイマー: '+(timer?'動作中':'停止'); }
 function fmt(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60), r=s%60; return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0'); }
-addEvt('timerStart','click', function(){
-  var min=Number(byId('timerMin').value||15); remainMs=min*60*1000;
-  setText('timerState','動作中'); updateTimerBadge();
-  if(timer) clearInterval(timer);
-  timer=setInterval(function(){
-    remainMs-=1000; var el=byId('timerRemain'); if(el) el.textContent=fmt(remainMs);
-    if(remainMs<=0){ clearInterval(timer); timer=null; setText('timerState','終了'); updateTimerBadge(); alert('タイマー終了'); }
-  }, 1000);
-});
-addEvt('timerStop','click', function(){ if(timer){ clearInterval(timer); timer=null; setText('timerState','停止中'); updateTimerBadge(); } });
-addEvt('timerReset','click', function(){ if(timer){ clearInterval(timer); timer=null; } var el=byId('timerRemain'); if(el) el.textContent='00:00'; setText('timerState','停止中'); updateTimerBadge(); });
-updateTimerBadge();
+/* === タイマー：イベント委譲（要素の有無に関係なく動く） === */
+document.addEventListener('click', function(e){
+  var t = e.target; if(!t) return;
+  var id = t.id || '';
+
+  if(id === 'timerStart'){
+    var minEl = byId('timerMin');
+    var min = Number(minEl && minEl.value || 15);
+    if(!isFinite(min) || min <= 0) min = 1;
+
+    // 残り時間セット
+    remainMs = min * 60 * 1000;
+    setText('timerState', '動作中');
+    updateTimerBadge();
+
+    var rem = byId('timerRemain');
+    if(rem) rem.textContent = fmt(remainMs);
+
+    // 既存タイマー停止→開始
+    if(timer) clearInterval(timer);
+    timer = setInterval(function(){
+      remainMs -= 1000;
+      var r = byId('timerRemain');
+      if(r) r.textContent = fmt(remainMs);
+      if(remainMs <= 0){
+        clearInterval(timer);
+        timer = null;
+        setText('timerState','終了');
+        updateTimerBadge();
+        alert('タイマー終了');
+      }
+    }, 1000);
+  }
+
+  else if(id === 'timerStop'){
+    if(timer){
+      clearInterval(timer);
+      timer = null;
+    }
+    setText('timerState','停止中');
+    updateTimerBadge();
+  }
+
+  else if(id === 'timerReset'){
+    if(timer){
+      clearInterval(timer);
+      timer = null;
+    }
+    var r2 = byId('timerRemain');
+    if(r2) r2.textContent = '00:00';
+    setText('timerState','停止中');
+    updateTimerBadge();
+  }
+}, false);
+
 var bL=byId('badgeLog'); if(bL) bL.textContent='計算ログ: 0件';
 
 /* =========================
@@ -1098,4 +1141,5 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(function(e){ console.warn(e); });
   });
 }
+
 
