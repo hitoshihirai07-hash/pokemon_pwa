@@ -1,6 +1,49 @@
-/* =========================
-   タブ切替
-========================= */
+/* =========================================================
+   ★ 最上部固定タイマー（全画面共通・タブ切替でも継続）
+   - 既存に timerMin/timerStart/timerStop/timerReset/timerRemain/timerState/badgeTimer が
+     ある場合は自動で“上部へ移動”、無ければ自動生成します。
+   - app.js の“先頭”で初期化し、以降の処理より前に常駐。
+========================================================= */
+(function dockTimerTop(){
+  if (document.getElementById('timerTopDock')) return;
+  const bar = document.createElement('div');
+  bar.id = 'timerTopDock';
+  Object.assign(bar.style, {
+    position:'sticky', top:'0', zIndex:'999',
+    background:'#0f1115', color:'#fff',
+    borderBottom:'1px solid #2a2d33',
+    padding:'8px 12px',
+    display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'
+  });
+  const ensure = (tag, id, initText='')=>{
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement(tag); el.id = id;
+      if (initText) el.textContent = initText;
+      if (tag === 'input') el.type = 'number';
+      if (id === 'timerMin') { el.min = '1'; el.value = el.value || '15'; el.style.width='80px'; el.title='分'; }
+      if (tag === 'button') { el.className = 'btn small'; }
+      if (id === 'badgeTimer') { el.className = 'pill'; }
+      if (id === 'timerRemain') el.textContent = '00:00';
+      if (id === 'timerState')  el.textContent = '停止中';
+    }
+    return el;
+  };
+  const label  = document.createElement('span'); label.textContent = '⏱ タイマー';
+  const badge  = ensure('span','badgeTimer','タイマー: 停止');
+  const min    = ensure('input','timerMin');
+  const start  = ensure('button','timerStart','開始');
+  const stop   = ensure('button','timerStop','停止');
+  const reset  = ensure('button','timerReset','リセット');
+  const remain = ensure('span','timerRemain','00:00');
+  const state  = ensure('span','timerState','停止中');
+  bar.append(label, badge, min, start, stop, reset, remain, state);
+  document.addEventListener('DOMContentLoaded', ()=> document.body.prepend(bar));
+})();
+
+/* =========================================================
+   タブ切替（要素が無い場合はスキップ。落ちないように）
+========================================================= */
 const tabs = document.querySelectorAll('.tab');
 const sections = {
   calc:  document.getElementById('tab-calc'),
@@ -15,14 +58,15 @@ for (const b of tabs){
   b.addEventListener('click', ()=>{
     tabs.forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
-    Object.values(sections).forEach(s=>s.classList.add('hidden'));
-    sections[b.dataset.tab].classList.remove('hidden');
+    Object.values(sections).forEach(s=>s&&s.classList.add('hidden'));
+    const target = sections[b.dataset.tab];
+    target && target.classList.remove('hidden');
   });
 }
 
-/* =========================
+/* =========================================================
    共通ユーティリティ
-========================= */
+========================================================= */
 function set(id,v){ const el=document.getElementById(id); if(el!=null) el.value=v; }
 function val(id,def){ const el=document.getElementById(id); if(!el) return def; const n=Number(el.value); return Number.isFinite(n)?n:def; }
 function text(id,v){ const el=document.getElementById(id); if(el!=null) el.textContent=v; }
@@ -34,9 +78,9 @@ function createSelect(id, cls='small'){ const s=document.createElement('select')
 function createInput(id,ph, cls='small'){ const i=document.createElement('input'); if(id) i.id=id; i.placeholder=ph||''; i.className=cls; return i; }
 function downloadFile(name, text, mime='application/json'){ const blob=new Blob([text],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); }
 
-/* =========================
-   ランク倍率（キーは文字列）
-========================= */
+/* =========================================================
+   ランク補正
+========================================================= */
 const RANK = {
   "-6": 2/8, "-5": 2/7, "-4": 2/6, "-3": 2/5, "-2": 2/4, "-1": 2/3,
   "0": 1, "1": 1.5, "2": 2, "3": 2.5, "4": 3, "5": 3.5, "6": 4
@@ -47,10 +91,8 @@ function fillSelect(id, arr, def){
   arr.forEach(v=>{const o=document.createElement('option');o.value=String(v);o.textContent=String(v);s.appendChild(o)});
   if(def!==undefined) s.value=String(def);
 }
-fillSelect('atkRank', Object.keys(RANK), '0');
-fillSelect('defRank', Object.keys(RANK), '0');
+['atkRank','defRank','v13_atkRank','v13_defRank1','v13_defRank2','v13_defRank3'].forEach(id=> fillSelect(id, Object.keys(RANK), '0'));
 fillSelect('hits', Array.from({length:10},(_,i)=>i+1), 1);
-['v13_atkRank','v13_defRank1','v13_defRank2','v13_defRank3'].forEach(id=> fillSelect(id, Object.keys(RANK), '0'));
 fillSelect('v13_hits', Array.from({length:10},(_,i)=>i+1), 1);
 
 function fillType(id){
@@ -73,9 +115,9 @@ function fillMoveType(id){
 }
 fillMoveType('moveType'); fillMoveType('v13_moveType');
 
-/* =========================
+/* =========================================================
    図鑑ローダ（pokemon_master.json）
-========================= */
+========================================================= */
 const PM = { list: [], byName: new Map(), ready: false };
 async function loadPokemonMaster() {
   if (PM.ready) return;
@@ -103,9 +145,9 @@ function rebuildDexList() {
 }
 window.addEventListener('load', loadPokemonMaster);
 
-/* =========================
+/* =========================================================
    実数値計算（メイン atk/def）
-========================= */
+========================================================= */
 const STAT_ORDER=['HP','攻撃','防御','特攻','特防','素早'];
 function buildStatsUI(side){
   const box=document.getElementById('stats-'+side); if(!box) return;
@@ -154,9 +196,7 @@ function setEV(side,k,v){ set(`${side}_ev_${k}`,v); recalcSide(side); }
 });
 recalcSide('atk'); recalcSide('def');
 
-/* =========================
-   図鑑 → 種族値反映（メイン）
-========================= */
+/* 図鑑→実数値へ反映（メイン） */
 function getStatFromMon(mon, key){
   if(!mon) return undefined;
   const map = {
@@ -201,23 +241,23 @@ document.getElementById('btnApplyStats')?.addEventListener('click',()=>{
   set('atkStat', val('atk_final_攻撃',172));
   set('defStat', val('def_final_防御',120));
   set('defHP',   val('def_final_HP',155));
-  tabs.forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="calc"]').classList.add('active');
-  Object.values(sections).forEach(s=>s.classList.add('hidden')); sections.calc.classList.remove('hidden');
+  tabs.forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="calc"]')?.classList.add('active');
+  Object.values(sections).forEach(s=>s&&s.classList.add('hidden')); sections.calc && sections.calc.classList.remove('hidden');
 });
 
-/* =========================
+/* =========================================================
    ダメージ計算（メイン1体）
-========================= */
+========================================================= */
 const resultBox=document.getElementById('result'), hpbar=document.getElementById('hpbar'), logBox=document.getElementById('logBox'), memoLog=document.getElementById('memoLog');
 let LOG=[];
 function writeLog(){
-  logBox.value=LOG.join('\n');
-  if(memoLog) memoLog.value=LOG.join('\n');
+  logBox && (logBox.value=LOG.join('\n'));
+  memoLog && (memoLog.value=LOG.join('\n'));
   const b=document.getElementById('badgeLog'); if(b) b.textContent=`計算ログ: ${LOG.length}件`;
   try{ localStorage.setItem('pokeapp_log', JSON.stringify(LOG)); }catch(_){}
 }
 document.getElementById('btnClearLog')?.addEventListener('click',()=>{ LOG=[]; writeLog(); });
-let undoStack=[]; document.getElementById('btnUndo')?.addEventListener('click',()=>{ if(!undoStack.length) return; const last=undoStack.pop(); logBox.value=last.log; if(memoLog) memoLog.value=last.log; set('defHP', last.hp); hpbar.style.width= last.hpPct; });
+let undoStack=[]; document.getElementById('btnUndo')?.addEventListener('click',()=>{ if(!undoStack.length) return; const last=undoStack.pop(); logBox && (logBox.value=last.log); memoLog && (memoLog.value=last.log); set('defHP', last.hp); if(hpbar) hpbar.style.width= last.hpPct; });
 
 function dmgRange({level=50,power,atk,def,stab=1,typeMul=1,rankAtk=1,rankDef=1,extra=1,mode='phys',crit=false,moveType='ノーマル',weather='none', rockInSand=false, iceInSnow=false}){
   let weatherMul=1;
@@ -234,12 +274,12 @@ function dmgRange({level=50,power,atk,def,stab=1,typeMul=1,rankAtk=1,rankDef=1,e
 }
 document.getElementById('btnCalc')?.addEventListener('click',()=>{
   const atkStat=val('atkStat',172), defStat0=val('defStat',120), hp0=val('defHP',155);
-  const power=val('power',80), stab=+document.getElementById('stab').value, typeMul=+document.getElementById('typeMul').value;
-  const rankAtk=RANK[document.getElementById('atkRank').value], rankDef=RANK[document.getElementById('defRank').value];
-  const extra=val('extra',1), mode=document.getElementById('mode').value, moveType=document.getElementById('moveType').value;
-  const weather=document.getElementById('weather').value;
+  const power=val('power',80), stab=+document.getElementById('stab')?.value||1, typeMul=+document.getElementById('typeMul')?.value||1;
+  const rankAtk=RANK[document.getElementById('atkRank')?.value||'0'], rankDef=RANK[document.getElementById('defRank')?.value||'0'];
+  const extra=val('extra',1), mode=document.getElementById('mode')?.value||'phys', moveType=document.getElementById('moveType')?.value||'ノーマル';
+  const weather=document.getElementById('weather')?.value||'none';
   const critEl=document.getElementById('crit'); const crit=critEl?(critEl.type==='checkbox'?critEl.checked:(+critEl.value>1)):false;
-  const hits=+document.getElementById('hits').value;
+  const hits=+document.getElementById('hits')?.value||1;
   const rockInSand=document.getElementById('chkRockInSand')?.checked, iceInSnow=document.getElementById('chkIceInSnow')?.checked;
 
   const [mn,mx]=dmgRange({power,atk:atkStat,def:defStat0,stab,typeMul,rankAtk,rankDef,extra,mode,crit,moveType,weather,rockInSand,iceInSnow});
@@ -251,27 +291,29 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
   else if(totMax>=hp){ ko='乱数1発（高乱数）'; }
   else { const a=ceilDiv(hp,mn||1), b=ceilDiv(hp,mx||1); ko=(a===b)?`確定${a}発`:`乱数${a}～${b}発`; }
 
-  resultBox.innerHTML = `
-    <div class="grid grid-3">
-      <div class="card"><div class="small muted">1発あたり</div><div><b>${mn} ～ ${mx}</b></div></div>
-      <div class="card"><div class="small muted">${hits}回合計</div><div><b>${totMin} ～ ${totMax}</b></div></div>
-      <div class="card"><div class="small muted">残りHP</div><div><b>${remMin} ～ ${remMax}</b>（${pct(remMin,hp)}% ～ ${pct(remMax,hp)}%）</div></div>
-    </div>
-    <div class="small">判定：<b>${ko}</b>　最小乱数ダメージ：<b>${mn}</b> / 最大乱数ダメージ：<b>${mx}</b></div>
-  `;
+  if(resultBox){
+    resultBox.innerHTML = `
+      <div class="grid grid-3">
+        <div class="card"><div class="small muted">1発あたり</div><div><b>${mn} ～ ${mx}</b></div></div>
+        <div class="card"><div class="small muted">${hits}回合計</div><div><b>${totMin} ～ ${totMax}</b></div></div>
+        <div class="card"><div class="small muted">残りHP</div><div><b>${remMin} ～ ${remMax}</b>（${pct(remMin,hp)}% ～ ${pct(remMax,hp)}%）</div></div>
+      </div>
+      <div class="small">判定：<b>${ko}</b>　最小乱数ダメージ：<b>${mn}</b> / 最大乱数ダメージ：<b>${mx}</b></div>
+    `;
+  }
   const remainPct = Math.max(0, 100 - Math.min(100, (totMax/hp*100)));
-  hpbar.style.width = `${remainPct}%`;
+  if(hpbar) hpbar.style.width = `${remainPct}%`;
 
-  undoStack.push({log:logBox.value, hp:hp0, hpPct:`100%`});
-  LOG.push(`[${new Date().toLocaleTimeString()}] 威力${power} STAB${stab} 相性${typeMul} 天候${weather}${rockInSand?'(岩SpD1.5)':''}${iceInSnow?'(氷Def1.5)':''} 急所${crit?'有':'無'} 攻R${document.getElementById('atkRank').value} 防R${document.getElementById('defRank').value} hit${hits} → 1発:${mn}-${mx} 合計:${totMin}-${totMax} | ${ko}`);
+  undoStack.push({log:logBox?.value||'', hp:hp0, hpPct:`100%`});
+  LOG.push(`[${new Date().toLocaleTimeString()}] 威力${power} STAB${stab} 相性${typeMul} 天候${weather}${rockInSand?'(岩SpD1.5)':''}${iceInSnow?'(氷Def1.5)':''} 急所${crit?'有':'無'} 攻R${document.getElementById('atkRank')?.value||0} 防R${document.getElementById('defRank')?.value||0} hit${hits} → 1発:${mn}-${mx} 合計:${totMin}-${totMax} | ${ko}`);
   writeLog();
 });
 
-/* =========================
-   1対3：実数値計算 UI（攻：攻撃/特攻、相手：HP/防御/特防）＋同期
-========================= */
+/* =========================================================
+   1対3（上に自分、下に相手3体）＋種族値→実数値同期
+========================================================= */
 (function enhanceV13(){
-  const sec = document.getElementById('tab-v13'); if(!sec) return;
+  const sec = sections.v13; if(!sec) return;
 
   // 自分（攻撃側）
   if(!document.getElementById('v13_self_search')){
@@ -294,10 +336,10 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
   }
   buildV13SelfForm();
 
-  // 相手×3
+  // 相手×3（カード内の先頭へフォーム追加）
   [1,2,3].forEach(i=>{
     const outEl=document.getElementById(`v13_out${i}`);
-    const holder = outEl?.closest('.card.small');
+    const holder = outEl?.closest('.card.small') || sec;
     if(holder && !document.getElementById(`v13_enemy_search_${i}`)){
       const wrap = document.createElement('div');
       wrap.innerHTML = `
@@ -309,21 +351,14 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
     }
   });
 
-  // 1対3入力イベント（input / change 両方）
   function v13EventHandler(e){
     const id = e.target?.id || '';
-
-    // 自分側
     if(id === 'v13_self_search'){
       const mon = findMonByName(e.target.value.trim()) || null;
       if(mon) applyV13SelfFromDex(mon);
     }
-    if(id.startsWith('v13_self_')){
-      recalcV13Self();
-      syncV13ModeToStats();
-    }
+    if(id.startsWith('v13_self_')){ recalcV13Self(); syncV13ModeToStats(); }
 
-    // 相手側
     const m = id.match(/^v13_enemy_search_(\d)$/);
     if(m){
       const idx = Number(m[1]);
@@ -336,14 +371,10 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
       recalcV13Foe(idx);
       syncV13ModeToStats();
     }
-
-    if(id === 'v13_mode'){
-      syncV13ModeToStats();
-    }
+    if(id === 'v13_mode'){ syncV13ModeToStats(); }
   }
   ['input','change'].forEach(ev => document.addEventListener(ev, v13EventHandler));
 
-  // 計算ボタン：実数値再計算→同期→ダメ計
   document.getElementById('btnV13')?.addEventListener('click', ()=>{
     recalcV13Self();
     [1,2,3].forEach(recalcV13Foe);
@@ -351,11 +382,8 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
     [1,2,3].forEach(dmgRangeV13);
   });
 
-  // 初期同期
   syncV13ModeToStats();
 })();
-
-// 自分フォーム（攻撃/特攻）
 function buildV13SelfForm(){
   const box=document.getElementById('v13_self_form'); if(!box) return;
   box.innerHTML = `
@@ -388,13 +416,10 @@ function recalcV13Self(){
   syncV13ModeToStats();
 }
 function applyV13SelfFromDex(mon){
-  ['攻撃','特攻'].forEach(k=>{
-    const v=getStatFromMon(mon,k) ?? 50; set(`v13_self_base_${k}`,v);
-  });
+  ['攻撃','特攻'].forEach(k=> set(`v13_self_base_${k}`, getStatFromMon(mon,k) ?? 50));
   recalcV13Self(); syncV13ModeToStats();
 }
 
-// 相手フォーム（HP/防御/特防）
 function buildV13FoeForm(i){
   const box=document.getElementById(`v13_foe_form_${i}`); if(!box) return;
   box.innerHTML = `
@@ -425,13 +450,9 @@ function recalcV13Foe(i){
   set(`v13_def${i}`, mode==='phys'? df : sd);
 }
 function applyV13FoeFromDex(i, mon){
-  ['HP','防御','特防'].forEach(k=>{
-    const v=getStatFromMon(mon,k) ?? 50; set(`v13_foe${i}_base_${k}`,v);
-  });
+  ['HP','防御','特防'].forEach(k=> set(`v13_foe${i}_base_${k}`, getStatFromMon(mon,k) ?? 50));
   recalcV13Foe(i); syncV13ModeToStats();
 }
-
-// モードに合わせて採用値更新
 function syncV13ModeToStats(){
   const mode=document.getElementById('v13_mode')?.value || 'phys';
   const atkPhys = val('v13_self_final_攻撃',172);
@@ -449,14 +470,14 @@ function dmgRangeV13(i){
   const stab  = +val('v13_stab',1.5);
   const rankAtk = RANK[String(val('v13_atkRank',0))];
   const extra   = val('v13_extra',1);
-  const mode    = document.getElementById('v13_mode').value;
+  const mode    = document.getElementById('v13_mode')?.value || 'phys';
   const hits    = +val('v13_hits',1);
   const moveType = document.getElementById('v13_moveType')?.value || 'ノーマル';
   const def    = val(`v13_def${i}`,120);
   const rankDef= RANK[String(val(`v13_defRank${i}`,0))];
   const hp     = val(`v13_hp${i}`,155);
   const typeMul= +val(`v13_type${i}`,1);
-  const weather= document.getElementById(`v13_weather${i}`).value;
+  const weather= document.getElementById(`v13_weather${i}`)?.value || 'none';
   const rockInSand = document.getElementById(`v13_rock${i}`)?.checked;
   const iceInSnow  = document.getElementById(`v13_ice${i}`)?.checked;
   const critEl=document.getElementById('v13_crit'); const crit=critEl?(critEl.type==='checkbox'?critEl.checked:(+critEl.value>1)):false;
@@ -467,26 +488,26 @@ function dmgRangeV13(i){
   if(totMin>=hp) txt+='確定1発';
   else if(totMax>=hp) txt+='乱数1発（高乱数）';
   else {const a=ceilDiv(hp,mn||1), b=ceilDiv(hp,mx||1); txt+=(a===b)?`確定${a}発`:`乱数${a}～${b}発`;}
-  document.getElementById(`v13_out${i}`).textContent=txt;
+  document.getElementById(`v13_out${i}`)?.textContent=txt;
 }
 document.getElementById('btnV13')?.addEventListener('click',()=>[1,2,3].forEach(dmgRangeV13));
 
-/* =========================
+/* =========================================================
    ステルスロック
-========================= */
+========================================================= */
 const SR_MAP={'等倍':1,'1/2':0.5,'1/4':0.25,'2倍':2,'4倍':4};
 (function(){
   const s=document.getElementById('sr_type'); if(!s) return;
   ['1/4','1/2','等倍','2倍','4倍'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;s.appendChild(o)}); s.value='等倍';
 })();
 document.getElementById('btnSR')?.addEventListener('click',()=>{
-  const hp=val('sr_hp',155), t=document.getElementById('sr_type').value; const mul=SR_MAP[t]||1;
+  const hp=val('sr_hp',155), t=document.getElementById('sr_type')?.value||'等倍'; const mul=SR_MAP[t]||1;
   const dmg=Math.floor(hp*0.125*mul); set('sr_result',`${dmg} ダメージ（${pct(dmg,hp)}%）`);
 });
 
-/* =========================
-   構築インポート（簡易）
-========================= */
+/* =========================================================
+   構築インポート（CSV/TSV/PKDB JSON 簡易対応）
+========================================================= */
 function parseCSV(txt){ const rows=txt.split(/\r?\n/).map(r=>r.split(/,|\t/)); return rows.filter(r=>r.some(x=>x && x.trim().length)); }
 function normalizeTeams(rows){
   const out=[]; rows.forEach((r)=>{ const names=r.slice(0,6).map(x=>({name:(x||'').trim()})); if(names.some(m=>m.name)) out.push({meta:{season:'?',rule:'?',rank:null,rating:null},members:names}); });
@@ -501,13 +522,13 @@ function normalizeFromPKDB(json){
 }
 let ALL_TEAMS=[]; function setTeams(arr){ ALL_TEAMS=Array.isArray(arr)?arr:[]; const b=document.getElementById('badgeTeams'); if(b) b.textContent=`構築: ${ALL_TEAMS.length}件`; renderTeamsList(); }
 const diagBox=document.getElementById('diagBox');
-document.getElementById('diagBtn')?.addEventListener('click',()=>{ diagBox.classList.toggle('hidden'); });
+document.getElementById('diagBtn')?.addEventListener('click',()=>{ diagBox && diagBox.classList.toggle('hidden'); });
 function setText(id,txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
 async function handleLoad(){
-  const f=document.getElementById('fileInput').files[0];
-  const pasted=document.getElementById('pasteBox').value.trim();
+  const f=document.getElementById('fileInput')?.files?.[0];
+  const pasted=document.getElementById('pasteBox')?.value?.trim();
   const info=document.getElementById('loadInfo');
-  let txt=''; if(f){txt=await f.text();} else if(pasted){txt=pasted;} else {info.textContent='入力がありません'; return;}
+  let txt=''; if(f){txt=await f.text();} else if(pasted){txt=pasted;} else {info&&(info.textContent='入力がありません'); return;}
   const head=txt.slice(0,400); let teams=[], mode='', jsonErr='', rowsCount=0;
   try{
     const json=JSON.parse(txt); mode='JSON';
@@ -519,9 +540,8 @@ async function handleLoad(){
   }catch(e){ jsonErr=String(e.message||e); }
   if(!teams.length){ const rows=parseCSV(txt); rowsCount=rows.length; mode=mode||'CSV/TSV'; teams=normalizeTeams(rows); }
 
-  document.getElementById('filterBox').value='';
   setText('diagMode',mode); setText('diagCount', String(rowsCount||teams.length)); setText('diagErr', jsonErr||'(なし)'); setText('diagHead', head);
-  if(!teams.length){ info.textContent='0件：形式をご確認ください'; } else { info.textContent=`読み込み成功：${teams.length}件`; }
+  info && (info.textContent = teams.length? `読み込み成功：${teams.length}件` : '0件：形式をご確認ください');
   setTeams(teams);
 }
 document.getElementById('loadBtn')?.addEventListener('click',handleLoad);
@@ -529,26 +549,18 @@ document.getElementById('clearBtn')?.addEventListener('click',()=>{ const fi=doc
 document.getElementById('demoBtn')?.addEventListener('click',()=>{
   const demo={season:33,rule:"シングル",teams:[
     {rank:1,rating_value:2180.889,team:[
-      {pokemon:"ドドゲザン",form:"",terastal:"ほのお",item:"ラムのみ"},
+      {pokemon:"ドドゲザン",terastal:"ほのお",item:"ラムのみ"},
       {pokemon:"マタドガス",form:"ガラルのすがた",terastal:"ノーマル",item:"くろいヘドロ"},
-      {pokemon:"キラフロル",form:"",terastal:"ノーマル",item:"きあいのタスキ"},
-      {pokemon:"ディンルー",form:"",terastal:"はがね",item:"オボンのみ"},
-      {pokemon:"ルギア",form:"",terastal:"ノーマル",item:"たべのこし"},
-      {pokemon:"コライドン",form:"",terastal:"ほのお",item:"こだわりスカーフ"}
-    ]},
-    {rank:2,rating_value:2177.16,team:[
-      {pokemon:"ミライドン",form:"",terastal:"フェアリー",item:"こだわりメガネ"},
-      {pokemon:"ホウオウ",form:"",terastal:"ノーマル",item:"あつぞこブーツ"},
-      {pokemon:"テツノワダチ",form:"",terastal:"ノーマル",item:"こだわりハチマキ"},
-      {pokemon:"ディンルー",form:"",terastal:"フェアリー",item:"たべのこし"},
-      {pokemon:"パオジアン",form:"",terastal:"あく",item:"きあいのタスキ"},
-      {pokemon:"ブリジュラス",form:"",terastal:"フェアリー",item:"オボンのみ"}
+      {pokemon:"キラフロル",terastal:"ノーマル",item:"きあいのタスキ"},
+      {pokemon:"ディンルー",terastal:"はがね",item:"オボンのみ"},
+      {pokemon:"ルギア",terastal:"ノーマル",item:"たべのこし"},
+      {pokemon:"コライドン",terastal:"ほのお",item:"こだわりスカーフ"}
     ]}
   ]};
   const t=normalizeFromPKDB(demo); setTeams(t); setText('loadInfo',`デモ読込：${t.length}件`);
 });
 function renderTeamsList(){
-  const box=document.getElementById('teamsList'); const f=(document.getElementById('filterBox').value||'').trim().toLowerCase(); if(!box) return;
+  const box=document.getElementById('teamsList'); const f=(document.getElementById('filterBox')?.value||'').trim().toLowerCase(); if(!box) return;
   box.innerHTML='';
   const src=!f?ALL_TEAMS:ALL_TEAMS.filter(t=>{
     const inMeta=`${t.meta.season} ${t.meta.rule} ${t.meta.rank} ${t.meta.rating}`.toLowerCase();
@@ -570,9 +582,9 @@ function renderTeamsList(){
 }
 document.getElementById('filterBox')?.addEventListener('input', renderTeamsList);
 
-/* =========================
-   パーティ（努力値 & 性格 & プリセット & 技×4）
-========================= */
+/* =========================================================
+   パーティ（努力値 & 性格 & プリセット & 技×4）＋保存読込
+========================================================= */
 const partyGrid=document.getElementById('partyGrid');
 function buildPartyUI(){
   if(!partyGrid) return;
@@ -671,8 +683,8 @@ function applyTeamToParty(team){
     const meta=document.getElementById(`p${i}Meta`); if(meta) meta.textContent=`S${team.meta.season||'?'} ${team.meta.rule||''}`+(team.meta.rank?` / 順位:${team.meta.rank}`:'');
   }
   refreshPartyJSON();
-  tabs.forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="party"]').classList.add('active');
-  Object.values(sections).forEach(s=>s.classList.add('hidden')); sections.party.classList.remove('hidden');
+  tabs.forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="party"]')?.classList.add('active');
+  Object.values(sections).forEach(s=>s&&s.classList.add('hidden')); sections.party && sections.party.classList.remove('hidden');
 }
 for(let i=1;i<=6;i++){
   ['Name','Item','Tera','Nature','EV_HP','EV_Atk','EV_Def','EV_SpA','EV_SpD','EV_Spe','Move1','Move2','Move3','Move4'].forEach(f=>{
@@ -684,9 +696,7 @@ document.getElementById('copyPartyJSON')?.addEventListener('click',()=>{ const t
 document.getElementById('clearParty')?.addEventListener('click',()=>{ buildPartyUI(); refreshPartyJSON(); buildPartyStorageBar(); });
 refreshPartyJSON();
 
-/* =========================
-   パーティー保存／読込（LocalStorage + JSON）
-========================= */
+/* 保存スロット（LocalStorage） */
 function getPartySlots(){ try{ return JSON.parse(localStorage.getItem('pokeapp_party_slots')||'{}'); }catch(_){ return {}; } }
 function putPartySlots(obj){ try{ localStorage.setItem('pokeapp_party_slots', JSON.stringify(obj)); }catch(_){ } }
 function refreshPartySlotSelect(){
@@ -697,7 +707,7 @@ function refreshPartySlotSelect(){
   if(last && slots[last]) sel.value=last;
 }
 function buildPartyStorageBar(){
-  const host = document.getElementById('tab-party'); if(!host) return;
+  const host = sections.party; if(!host) return;
   if(document.getElementById('partyStoreBar')) return;
   const bar=document.createElement('div'); bar.id='partyStoreBar'; bar.className='flex'; bar.style.gap='8px'; bar.style.margin='8px 0';
   const nameIn = createInput('partySlotName','スロット名');
@@ -730,15 +740,12 @@ function buildPartyStorageBar(){
     if(localStorage.getItem('pokeapp_party_last')===nm) localStorage.removeItem('pokeapp_party_last');
     refreshPartySlotSelect(); alert('削除しました');
   };
-  bExp.onclick=()=>{
-    const slots=getPartySlots(); downloadFile('party_slots.json', JSON.stringify(slots,null,2));
-  };
+  bExp.onclick=()=> downloadFile('party_slots.json', JSON.stringify(getPartySlots(),null,2));
   bImp.onclick=()=>{
     const fi=document.createElement('input'); fi.type='file'; fi.accept='.json,application/json';
     fi.onchange=async ()=>{ const f=fi.files[0]; if(!f) return; const txt=await f.text(); try{ const obj=JSON.parse(txt); if(!obj || typeof obj!=='object'){ alert('不正なJSON'); return; } putPartySlots(obj); refreshPartySlotSelect(); alert('読込完了'); }catch(e){ alert('JSON読込エラー: '+e.message); } };
     fi.click();
   };
-
   refreshPartySlotSelect();
 
   // オートセーブ復元
@@ -748,28 +755,10 @@ function buildPartyStorageBar(){
   }catch(_){}
 }
 buildPartyStorageBar();
-/* =========================
-   タイマー
-========================= */
-let timer=null, remainMs=0;
-function updateTimerBadge(){ const b=document.getElementById('badgeTimer'); if(b) b.textContent = `タイマー: ${timer?'動作中':'停止'}`; }
-function fmt(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
-document.getElementById('timerStart')?.addEventListener('click',()=>{
-  const min=val('timerMin',15); remainMs=min*60*1000;
-  set('timerState','動作中'); updateTimerBadge();
-  if(timer) clearInterval(timer);
-  timer=setInterval(()=>{
-    remainMs-=1000; set('timerRemain',fmt(remainMs));
-    if(remainMs<=0){ clearInterval(timer); timer=null; set('timerState','終了'); updateTimerBadge(); alert('タイマー終了'); }
-  },1000);
-});
-document.getElementById('timerStop')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; set('timerState','停止中'); updateTimerBadge(); } });
-document.getElementById('timerReset')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; } set('timerRemain','00:00'); set('timerState','停止中'); updateTimerBadge(); });
-updateTimerBadge();
 
-/* =========================
+/* =========================================================
    計算ログ 保存／読込（LocalStorage + TXT）
-========================= */
+========================================================= */
 function buildLogStorageBar(){
   const area=logBox; if(!area) return;
   if(document.getElementById('logStoreBar')) return;
@@ -783,21 +772,20 @@ function buildLogStorageBar(){
 
   bSave.onclick=()=>{ try{ localStorage.setItem('pokeapp_log', JSON.stringify(LOG)); alert('保存しました'); }catch(e){ alert('保存失敗'); } };
   bLoad.onclick=()=>{ try{ const arr=JSON.parse(localStorage.getItem('pokeapp_log')||'[]'); if(Array.isArray(arr)){ LOG=arr; writeLog(); alert('読込しました'); } else alert('データなし'); }catch(e){ alert('読込失敗'); } };
-  bExp.onclick=()=>{ const txt=(LOG||[]).join('\n'); downloadFile('battle_calc_log.txt', txt, 'text/plain'); };
+  bExp.onclick=()=> downloadFile('battle_calc_log.txt', (LOG||[]).join('\n'), 'text/plain');
   bImp.onclick=()=>{
     const fi=document.createElement('input'); fi.type='file'; fi.accept='.txt,text/plain';
     fi.onchange=async ()=>{ const f=fi.files[0]; if(!f) return; const txt=await f.text(); LOG=(txt.split(/\r?\n/).filter(x=>x.trim().length)); writeLog(); alert('TXT読込完了'); };
     fi.click();
   };
-
   // 起動時に自動復元
   try{ const arr=JSON.parse(localStorage.getItem('pokeapp_log')||'[]'); if(Array.isArray(arr) && arr.length){ LOG=arr; writeLog(); } }catch(_){}
 }
 buildLogStorageBar();
 
-/* =========================
-   ★ 対戦ログ（ここが新機能）
-========================= */
+/* =========================================================
+   ★ 対戦ログ（専用フォーム＋一覧＋保存/読込/インポート/エクスポート）
+========================================================= */
 const BATTLE_KEY = 'pokeapp_battles';
 function loadBattles(){ try{ return JSON.parse(localStorage.getItem(BATTLE_KEY)||'[]'); }catch(_){ return []; } }
 function saveBattles(arr){ try{ localStorage.setItem(BATTLE_KEY, JSON.stringify(arr)); }catch(_){ } }
@@ -865,12 +853,9 @@ function buildBattleLogUI(){
   `;
   host.prepend(wrap);
 
-  // 初期値
   document.getElementById('bl_time').value = ymdhm();
-  // パーティスロット
   refreshBLSlot();
 
-  // ハンドラ
   document.getElementById('bl_save').onclick = saveBattleFromForm;
   document.getElementById('bl_clear').onclick = clearBattleForm;
   document.getElementById('bl_export').onclick = ()=> downloadFile('battle_logs.json', JSON.stringify(loadBattles(),null,2));
@@ -880,7 +865,6 @@ function buildBattleLogUI(){
     fi.click();
   };
   document.getElementById('bl_filter').addEventListener('input', renderBattleList);
-
   renderBattleList();
 }
 function refreshBLSlot(){
@@ -889,7 +873,6 @@ function refreshBLSlot(){
   const names = getPartySlotsNames();
   const defOpt = document.createElement('option'); defOpt.value=''; defOpt.textContent='（未指定）'; sel.appendChild(defOpt);
   names.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
-  // 直近の選択を既定に
   const last=localStorage.getItem('pokeapp_party_last'); if(last && names.includes(last)) sel.value=last;
 }
 function readOppTeamTextarea(){
@@ -958,7 +941,6 @@ function renderBattleList(){
         <button class="btn btn-ghost small" data-act="copy">コピー</button>
       </div>
     `;
-    // 操作
     c.querySelector('[data-act="edit"]').onclick=()=>{
       window.__BL_EDITING__ = e;
       set('bl_time', e.time||ymdhm());
@@ -988,15 +970,31 @@ function renderBattleList(){
 }
 buildBattleLogUI();
 
-
+/* =========================================================
+   タイマー本体（Top Dock と連携）
+========================================================= */
+let timer=null, remainMs=0;
+function updateTimerBadge(){ const b=document.getElementById('badgeTimer'); if(b) b.textContent = `タイマー: ${timer?'動作中':'停止'}`; }
+function fmt(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
+document.getElementById('timerStart')?.addEventListener('click',()=>{
+  const min=val('timerMin',15); remainMs=min*60*1000;
+  set('timerState','動作中'); updateTimerBadge();
+  if(timer) clearInterval(timer);
+  timer=setInterval(()=>{
+    remainMs-=1000; const el=document.getElementById('timerRemain'); el && (el.textContent=fmt(remainMs));
+    if(remainMs<=0){ clearInterval(timer); timer=null; set('timerState','終了'); updateTimerBadge(); alert('タイマー終了'); }
+  },1000);
+});
+document.getElementById('timerStop')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; set('timerState','停止中'); updateTimerBadge(); } });
+document.getElementById('timerReset')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; } const el=document.getElementById('timerRemain'); el && (el.textContent='00:00'); set('timerState','停止中'); updateTimerBadge(); });
+updateTimerBadge();
 const bL=document.getElementById('badgeLog'); if(bL) bL.textContent='計算ログ: 0件';
 
-/* =========================
-   Service Worker 登録
-========================= */
+/* =========================================================
+   Service Worker 登録（任意）
+========================================================= */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.error);
   });
 }
-
