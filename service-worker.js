@@ -4,10 +4,10 @@ const ASSETS = [
   './index.html',
   './css/styles.css',
   './js/parser.js',
-  './js/app.js',
   './manifest.json',
   './pokemon_master.json'
   './manifest.webmanifest'
+ './js/app.js',
 ];
 
 self.addEventListener('install', (e) => {
@@ -35,6 +35,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
   }
 });
+
 
 
 
