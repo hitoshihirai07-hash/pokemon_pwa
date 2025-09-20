@@ -1,5 +1,5 @@
 /* ===== バージョン & PWA ===== */
-const APP_VER = '2025-09-20-multi-memo';
+const APP_VER = '2025-09-20-multi-memo-stcalc';
 const swStatus = document.getElementById('swStatus');
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
@@ -39,7 +39,7 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const LEVEL = 50;
 const RANK_MULT = { "-6":2/8,"-5":2/7,"-4":2/6,"-3":2/5,"-2":2/4,"-1":2/3,"0":1,"1":3/2,"2":2,"3":5/2,"4":3,"5":7/2,"6":4 };
 
-/* ===== 共通: 実数値/ダメージ ===== */
+/* ===== 実数値/ダメージ ===== */
 function calcStat(base, iv, ev, nature, isHP){
   if(isHP){
     return Math.floor(((2*base + iv + Math.floor(ev/4)) * LEVEL)/100) + LEVEL + 10;
@@ -212,6 +212,31 @@ function mAttackAll(){ [1,2,3].forEach(mAttackOne); }
 function mResetAll(){ [1,2,3].forEach(mResetOne); $('mLog').value=''; }
 function mCopyAtk(kind){ if(kind==='A') $('mAtkA').value = num('atkA',200); else $('mAtkS').value = num('atkS',200); }
 
+/* ===== 1対3：実数値計 ===== */
+function mRunAtkCalc(){
+  const target = $('mAtkCalcTarget').value;
+  const base = num('mAtkBase',50);
+  const iv = num('mAtkIV',31);
+  const ev = num('mAtkEV',0);
+  const nature = Number($('mAtkNature').value);
+  const val = calcStat(base, iv, ev, nature, false);
+  $('mAtkCalcOut').textContent = `${target}: ${val}`;
+  if(target === '攻撃'){ $('mAtkA').value = val; } else { $('mAtkS').value = val; }
+}
+function mRunDefCalc(i){
+  const target = $(`d${i}CalcTarget`).value;
+  const isHP = target === 'HP';
+  const base = num(`d${i}Base`, 50);
+  const iv   = num(`d${i}IV`, 31);
+  const ev   = num(`d${i}EV`, 0);
+  const nature = isHP ? 1.0 : Number($(`d${i}Nature`).value);
+  const val = calcStat(base, iv, ev, nature, isHP);
+  $(`d${i}CalcOut`).textContent = `${target}: ${val}`;
+  if(isHP){ $(`d${i}HP`).value = val; mResetOne(i); }
+  else if(target==='防御'){ $(`d${i}B`).value = val; }
+  else { $(`d${i}D`).value = val; }
+}
+
 /* ===== 図鑑/検索 ===== */
 let DEX = [];        // {no,name,types:[t1,t2],base:{HP,攻撃,防御,特攻,特防,素早}}
 let NAME_INDEX = []; // {no,name,norm}
@@ -276,15 +301,12 @@ function applyToCalc(side){
   if(!m){ alert('先に実数値を計算してください'); return; }
   const stat = m[1], v = Number(m[2]);
   if(side==='atk'){
-    if(stat==='攻撃') $('atkA').value = v;
-    if(stat==='特攻') $('atkS').value = v;
-    // 1対3 にも反映（便利用）
-    if(stat==='攻撃') $('mAtkA').value = v;
-    if(stat==='特攻') $('mAtkS').value = v;
+    if(stat==='攻撃'){ $('atkA').value = v; $('mAtkA').value = v; }
+    if(stat==='特攻'){ $('atkS').value = v; $('mAtkS').value = v; }
   }else{
     if(stat==='HP'){ $('defHP').value = v; resetHP(); }
-    if(stat==='防御') $('defB').value = v;
-    if(stat==='特防') $('defD').value = v;
+    if(stat==='防御'){ $('defB').value = v; }
+    if(stat==='特防'){ $('defD').value = v; }
   }
   alert(`「${stat} = ${v}」を反映しました`);
 }
@@ -327,7 +349,7 @@ function buildPartyUI(){ const grid=$('partyGrid'); grid.innerHTML=''; let html=
     </div>
   </div>`; } grid.innerHTML=html; refreshSinglesListAll(); }
 
-/* ===== 対戦メモ 保存 ===== */
+/* ===== 対戦メモ（既存） ===== */
 const MEMO_KEY = 'match_memos_v1';
 function memoReadUI(){
   return {
@@ -354,7 +376,7 @@ function memoSave(){ const name=$('memoSaveName').value.trim()||`memo_${new Date
 function memoLoad(){ const k=$('memoList').value; if(!k) return; const st=memoLoadStore(); if(!st[k]) return; memoWriteUI(st[k]); }
 function memoDelete(){ const k=$('memoList').value; if(!k) return; const st=memoLoadStore(); delete st[k]; memoSaveStore(st); }
 
-/* ===== タブ切替（堅牢＋復元） ===== */
+/* ===== タブ切替 ===== */
 function switchTab(key){
   document.querySelectorAll('.tab').forEach(b=>{ b.classList.toggle('active', b.dataset.tab===key); });
   $('tab-calc').classList.toggle('hidden', key!=='calc');
@@ -369,7 +391,7 @@ document.addEventListener('click', (e)=>{
   const btn = e.target.closest('.tab'); if(!btn) return; e.preventDefault(); switchTab(btn.dataset.tab);
 });
 
-/* ===== タイマー（既存） ===== */
+/* ===== タイマー ===== */
 let timerMs = 600000, timerRunning=false, timerEndAt=0, timerId=null;
 function fmt(ms){ ms=Math.max(0, ms|0); const s=Math.floor(ms/1000); const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${mm}:${ss}`; }
 function drawTimer(){ const now=Date.now(); const remain=timerRunning?Math.max(0,timerEndAt-now):timerMs; $('timerDisplay').textContent=fmt(remain); if(timerRunning&&remain<=0){ stopTimer(false); if(navigator.vibrate) navigator.vibrate([200,100,200]); alert('タイマー終了！'); } }
