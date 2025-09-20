@@ -1,5 +1,5 @@
 /* ===== バージョン & PWA ===== */
-const APP_VER = '2025-09-20-multi-memo-stcalc';
+const APP_VER = '2025-09-20-full';
 const swStatus = document.getElementById('swStatus');
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
@@ -67,7 +67,7 @@ function choiceItemMultiplier(item, category){
 }
 function lifeOrbMultiplier(item){ return item === 'いのちのたま' ? 1.3 : 1.0; }
 
-/* ====== 計算タブ（既存） ====== */
+/* ====== 計算タブ ====== */
 function currentAtkStat(category){ return category === '物理' ? num('atkA', 1) : num('atkS', 1); }
 function currentDefStat(category){ return category === '物理' ? num('defB', 1) : num('defD', 1); }
 function sandSpDefBoostOn(category){ return $('weather').value === '砂嵐' && $('sandRock').value === '1' && category === '特殊'; }
@@ -138,11 +138,17 @@ function previewDamage(){
 
 /* 実数値計（計算タブ） */
 function runAtkCalc(){
-  const target = $('atkCalcTarget').value, val = calcStat(num('atkBase',50), num('atkIV',31), num('atkEV',0), Number($('atkNature').value), false);
+  const target = $('atkCalcTarget').value;
+  const val = calcStat(num('atkBase',50), num('atkIV',31), num('atkEV',0), Number($('atkNature').value), false);
   $('atkCalcOut').textContent = `${target}: ${val}`;
   if(target === '攻撃'){ $('atkA').value = val; } else { $('atkS').value = val; }
 }
-function copyFromAtkCalc(){}
+function copyFromAtkCalc(kind){
+  const m = $('atkCalcOut').textContent.match(/(攻撃|特攻):\s*(\d+)/);
+  if(!m){ alert('先に攻撃側の実数値計で計算してください'); return; }
+  const val = Number(m[2]);
+  if(kind==='A'){ $('atkA').value = val; } else { $('atkS').value = val; }
+}
 function runDefCalc(){
   const target = $('defCalcTarget').value, isHP = target==='HP';
   const val = calcStat(num('defBase',50), num('defIV',31), num('defEV',0), isHP?1.0:Number($('defNature').value), isHP);
@@ -151,14 +157,19 @@ function runDefCalc(){
   else if(target === '防御'){ $('defB').value = val; }
   else { $('defD').value = val; }
 }
-function copyFromDefCalc(){}
+function copyFromDefCalc(kind){
+  const m = $('defCalcOut').textContent.match(/(HP|防御|特防):\s*(\d+)/);
+  if(!m){ alert('先に防御側の実数値計で計算してください'); return; }
+  const stat = m[1], val = Number(m[2]);
+  if(kind==='HP' || stat==='HP'){ $('defHP').value = val; resetHP(); }
+  else if(kind==='B' || stat==='防御'){ $('defB').value = val; }
+  else { $('defD').value = val; }
+}
 
 /* ===== 1対3: 計算ロジック ===== */
 const mState = { curHP:[0,0,0] };
 function mAtkStat(){ return $('mCategory').value==='物理' ? num('mAtkA',1) : num('mAtkS',1); }
-function mDefStat(i){
-  return $('mCategory').value==='物理' ? num(`d${i}B`,1) : num(`d${i}D`,1);
-}
+function mDefStat(i){ return $('mCategory').value==='物理' ? num(`d${i}B`,1) : num(`d${i}D`,1); }
 function mWeatherMul(){ return weatherMoveMultiplier($('mWeather').value, $('mMoveType').value); }
 function mItemMul(){ return choiceItemMultiplier($('mItem').value, $('mCategory').value) * lifeOrbMultiplier($('mItem').value); }
 function mBurnMul(){ return ($('mStatus').value==='やけど' && $('mCategory').value==='物理') ? 0.5 : 1.0; }
@@ -178,7 +189,6 @@ function mRange(i){
   const min = Math.floor(base*0.85), max = Math.floor(base*1.0);
   return {min, max};
 }
-
 function mSyncHP(i){
   const hpMax = num(`d${i}HP`,0);
   mState.curHP[i-1] = clamp(mState.curHP[i-1], 0, hpMax);
@@ -212,23 +222,18 @@ function mAttackAll(){ [1,2,3].forEach(mAttackOne); }
 function mResetAll(){ [1,2,3].forEach(mResetOne); $('mLog').value=''; }
 function mCopyAtk(kind){ if(kind==='A') $('mAtkA').value = num('atkA',200); else $('mAtkS').value = num('atkS',200); }
 
-/* ===== 1対3：実数値計 ===== */
+/* 1対3：実数値計 */
 function mRunAtkCalc(){
   const target = $('mAtkCalcTarget').value;
-  const base = num('mAtkBase',50);
-  const iv = num('mAtkIV',31);
-  const ev = num('mAtkEV',0);
+  const base = num('mAtkBase',50), iv = num('mAtkIV',31), ev = num('mAtkEV',0);
   const nature = Number($('mAtkNature').value);
   const val = calcStat(base, iv, ev, nature, false);
   $('mAtkCalcOut').textContent = `${target}: ${val}`;
   if(target === '攻撃'){ $('mAtkA').value = val; } else { $('mAtkS').value = val; }
 }
 function mRunDefCalc(i){
-  const target = $(`d${i}CalcTarget`).value;
-  const isHP = target === 'HP';
-  const base = num(`d${i}Base`, 50);
-  const iv   = num(`d${i}IV`, 31);
-  const ev   = num(`d${i}EV`, 0);
+  const target = $(`d${i}CalcTarget`).value, isHP = target==='HP';
+  const base = num(`d${i}Base`,50), iv = num(`d${i}IV`,31), ev = num(`d${i}EV`,0);
   const nature = isHP ? 1.0 : Number($(`d${i}Nature`).value);
   const val = calcStat(base, iv, ev, nature, isHP);
   $(`d${i}CalcOut`).textContent = `${target}: ${val}`;
@@ -242,85 +247,46 @@ let DEX = [];        // {no,name,types:[t1,t2],base:{HP,攻撃,防御,特攻,特
 let NAME_INDEX = []; // {no,name,norm}
 function toNumber(v){ if(v==null) return null; const s=String(v).replace(/[^\d]/g,''); return s?Number(s):null; }
 function normalizeJP(s){ return String(s||'').normalize('NFKC').replace(/\s+/g,'').replace(/[ぁ-ん]/g,ch=>String.fromCharCode(ch.charCodeAt(0)+0x60)).toLowerCase(); }
+// JSONキー揺れ吸収
+function pick(p, keys, def=null){ for(const k of keys){ if(p[k] != null) return p[k]; } return def; }
+
 async function loadDexFromMaster() {
   try {
     const res = await fetch('./pokemon_master.json?ver=' + APP_VER, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const src = await res.json();
-    // JSONのキー揺れ対策（こうげき/攻/ A など）
-function pick(p, keys, def=null){
-  for(const k of keys){ if(p[k] != null) return p[k]; }
-  return def;
-}
-   DEX = src.map(p => {
-  const no = toNumber(p.No ?? p.no ?? p.dex ?? p.Dex);
-  const name = String(p.名前 ?? p.name ?? '').trim();
-  // 種族値キーのブレを吸収
-  const base = {
-    HP:  pick(p, ['HP','hp']),
-    攻撃: pick(p, ['攻撃','こうげき','攻','A','a']),
-    防御: pick(p, ['防御','ぼうぎょ','防','B','b']),
-    特攻: pick(p, ['特攻','とくこう','C','c']),
-    特防: pick(p, ['特防','とくぼう','D','d']),
-    素早: pick(p, ['素早','素早さ','すばやさ','S','s'])
-  };
-  return {
-    no,
-    name,
-    types: [p.タイプ1 ?? p.type1 ?? null, p.タイプ2 ?? p.type2 ?? null],
-    base
-  };
-});
-// 図鑑パネル→各実数値計にベース値を流し込む
-function applyDexBase(){
-  const name = $('dexSearch').value.trim();
-  const d = pickDexByName(name);
-  if(!d){ alert('先に図鑑でポケモンを選んでください'); return; }
 
-  const sel = $('dexSendTarget').value; // 例: "atk-攻撃", "d2-特防"
-  const [dest, stat] = sel.split('-');  // dest: atk/def/d1/d2/d3
+    DEX = src.map(p => {
+      const no = toNumber(p.No ?? p.no ?? p.dex ?? p.Dex);
+      const name = String(p.名前 ?? p.name ?? '').trim();
+      const base = {
+        HP:  pick(p, ['HP','hp']),
+        攻撃: pick(p, ['攻撃','こうげき','攻','A','a']),
+        防御: pick(p, ['防御','ぼうぎょ','防','B','b']),
+        特攻: pick(p, ['特攻','とくこう','C','c']),
+        特防: pick(p, ['特防','とくぼう','D','d']),
+        素早: pick(p, ['素早','素早さ','すばやさ','S','s'])
+      };
+      return { no, name, types:[p.タイプ1 ?? p.type1 ?? null, p.タイプ2 ?? p.type2 ?? null], base };
+    });
 
-  // ベース値（対象ステータス）
-  const val = d.base[stat];
-  if(val == null){ alert(`種族値「${stat}」が見つかりませんでした`); return; }
+    NAME_INDEX = DEX.map(d => ({ no:d.no, name:d.name, norm: normalizeJP(d.name) }));
 
-  // 各フォームの「種族値」欄へ適用
-  const map = {
-    'atk': { '攻撃':'atkBase', '特攻':'atkBase' },
-    'def': { 'HP':'defBase', '防御':'defBase', '特防':'defBase' },
-    'd1':  { 'HP':'d1Base',  '防御':'d1Base',  '特防':'d1Base'  },
-    'd2':  { 'HP':'d2Base',  '防御':'d2Base',  '特防':'d2Base'  },
-    'd3':  { 'HP':'d3Base',  '防御':'d3Base',  '特防':'d3Base'  },
-  };
-
-  const targetInputId = map[dest]?.[stat];
-  if(!targetInputId){ alert('反映先の項目が見つかりませんでした'); return; }
-
-  $(targetInputId).value = val;
-
-  // ちょい親切：反映しただけで終わらず、結果欄にも見えるように
-  if(dest === 'atk'){
-    // 攻撃側の実数値計を計算して反映
-    $('atkIV').value = 31; // 好みで初期値
-    $('atkEV').value = 252;
-    $('atkCalcTarget').value = stat;
-    $('atkCalcOut').textContent = `ベース: ${val}`;
-  }else if(dest === 'def'){
-    $('defIV').value = 31;
-    $('defEV').value = 0;
-    $('defCalcTarget').value = stat;
-    $('defCalcOut').textContent = `ベース: ${val}`;
-  }else{
-    const i = Number(dest.slice(1));
-    $(`d${i}IV`).value = 31;
-    $(`d${i}EV`).value = 0;
-    $(`d${i}CalcTarget`).value = stat;
-    $(`d${i}CalcOut`).textContent = `ベース: ${val}`;
+    // datalist
+    const dl = $('pkmnlist'); dl.innerHTML=''; DEX.forEach(d=>{ const o=document.createElement('option'); o.value=d.name; dl.appendChild(o); });
+    const info = $('dexInfo'); if(info) info.innerHTML = `<span class="pill">図鑑データ: ${DEX.length}件 読込OK</span>`;
+  } catch (err) {
+    console.warn('pokemon_master.json 読込失敗:', err);
+    DEX = []; NAME_INDEX = [];
+    const info = $('dexInfo'); if(info) info.innerHTML = `<span class="pill" style="background:#ffe5e5;color:#b00020">図鑑データ読込エラー</span>`;
   }
-
-  alert(`「${d.name}」の種族値（${stat}=${val}）を反映しました`);
 }
-
+function findCandidates(q, limit=10){
+  const n = normalizeJP(q); if(!n) return [];
+  const isNum = /^\d+$/.test(q.trim());
+  return NAME_INDEX.filter(r=>isNum?String(r.no).includes(q.trim()):r.norm.includes(n)).slice(0,limit).map(r=>({no:r.no,name:r.name}));
+}
+function pickDexByName(name){ return DEX.find(x=>x.name===name)||null; }
 
 const dexSg = $('dexSuggest');
 $('dexSearch').addEventListener('input', (e) => {
@@ -332,13 +298,15 @@ dexSg.addEventListener('click', (e) => {
   const li = e.target.closest('li'); if(!li) return;
   const name = li.textContent; $('dexSearch').value = name; dexSg.classList.add('hidden'); showDexInfo(name);
 });
+$('dexSearch').addEventListener('change', ()=> showDexInfo($('dexSearch').value));
+
 function showDexInfo(name){
   const d = pickDexByName(name); if(!d){ $('dexInfo').textContent = '未選択'; return; }
   $('dexInfo').innerHTML = `
     <div><strong>${d.name}</strong>　タイプ：${d.types.filter(Boolean).join(' / ') || '—'}</div>
     <table>
-      <tr><th>HP</th><td>${d.base.HP}</td><th>攻撃</th><td>${d.base.攻撃}</td><th>防御</th><td>${d.base.防御}</td></tr>
-      <tr><th>特攻</th><td>${d.base.特攻}</td><th>特防</th><td>${d.base.特防}</td><th>素早</th><td>${d.base.素早}</td></tr>
+      <tr><th>HP</th><td>${d.base.HP ?? '-'}</td><th>攻撃</th><td>${d.base.攻撃 ?? '-'}</td><th>防御</th><td>${d.base.防御 ?? '-'}</td></tr>
+      <tr><th>特攻</th><td>${d.base.特攻 ?? '-'}</td><th>特防</th><td>${d.base.特防 ?? '-'}</td><th>素早</th><td>${d.base.素早 ?? '-'}</td></tr>
     </table>`;
   // 画像（ローカル→外部）
   const img = $('dexImg');
@@ -346,8 +314,51 @@ function showDexInfo(name){
   img.style.display='none'; img.src = imgPathLocal(d.name);
   img.onload = ()=> img.style.display='';
   img.onerror = ()=>{ img.onerror=null; if(d.no){ img.src=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${d.no}.png`; img.onload=()=>img.style.display=''; img.onerror=()=>{img.style.display='none';}; } };
+
+  // 実数値計プリセット（対象のベース値を入れておく）
   $('dexBase').value = d.base[$('dexTarget').value] ?? 100;
 }
+
+/* 図鑑 → 各実数値計に種族値を送る */
+function applyDexBase(){
+  const name = $('dexSearch').value.trim();
+  const d = pickDexByName(name);
+  if(!d){ alert('先に図鑑でポケモンを選んでください'); return; }
+
+  const sel = $('dexSendTarget').value; // 例: "atk-攻撃", "d2-特防"
+  const [dest, stat] = sel.split('-');
+  const val = d.base[stat];
+  if(val == null){ alert(`種族値「${stat}」が見つかりませんでした`); return; }
+
+  const map = {
+    'atk': { '攻撃':'atkBase', '特攻':'atkBase' },
+    'def': { 'HP':'defBase', '防御':'defBase', '特防':'defBase' },
+    'd1':  { 'HP':'d1Base',  '防御':'d1Base',  '特防':'d1Base'  },
+    'd2':  { 'HP':'d2Base',  '防御':'d2Base',  '特防':'d2Base'  },
+    'd3':  { 'HP':'d3Base',  '防御':'d3Base',  '特防':'d3Base'  },
+  };
+  const targetInputId = map[dest]?.[stat];
+  if(!targetInputId){ alert('反映先の項目が見つかりませんでした'); return; }
+
+  $(targetInputId).value = val;
+
+  // 便利表示
+  if(dest === 'atk'){
+    $('atkCalcTarget').value = stat;
+    $('atkCalcOut').textContent = `ベース: ${val}`;
+  }else if(dest === 'def'){
+    $('defCalcTarget').value = stat;
+    $('defCalcOut').textContent = `ベース: ${val}`;
+  }else{
+    const i = Number(dest.slice(1));
+    $(`d${i}CalcTarget`).value = stat;
+    $(`d${i}CalcOut`).textContent = `ベース: ${val}`;
+  }
+
+  alert(`「${d.name}」の種族値（${stat}=${val}）を反映しました`);
+}
+
+/* 図鑑の実数値計 → メイン攻撃/防御へ */
 function runDexCalc(){
   const isHP = $('dexTarget').value==='HP';
   const val = calcStat(num('dexBase',100), num('dexIV',31), num('dexEV',0), isHP?1.0:Number($('dexNature').value), isHP);
@@ -368,7 +379,7 @@ function applyToCalc(side){
   alert(`「${stat} = ${v}」を反映しました`);
 }
 
-/* ===== パーティ保存（既存） ===== */
+/* ===== パーティ保存 ===== */
 const PARTY_KEY = 'pokemon_parties_v1';
 const SINGLE_KEY = 'pokemon_singles_v1';
 function partyEmpty(){ return { name:'', item:'', moves:['','','',''], memo:'' }; }
@@ -406,7 +417,7 @@ function buildPartyUI(){ const grid=$('partyGrid'); grid.innerHTML=''; let html=
     </div>
   </div>`; } grid.innerHTML=html; refreshSinglesListAll(); }
 
-/* ===== 対戦メモ（既存） ===== */
+/* ===== 対戦メモ ===== */
 const MEMO_KEY = 'match_memos_v1';
 function memoReadUI(){
   return {
@@ -460,14 +471,13 @@ function resetTimer(){ stopTimer(false); const m=clamp(num('timerMin',10),0,999)
 /* ===== 初期化 ===== */
 (function init(){
   try {
-    // メインのランク/ヒット
+    // メイン
     const atkStage=$('atkStage'), defStage=$('defStage'), hits=$('hits');
     for(let i=-6;i<=6;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(i===0)o.selected=true; atkStage.appendChild(o.cloneNode(true)); defStage.appendChild(o); }
     for(let i=1;i<=10;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(i===1)o.selected=true; hits.appendChild(o); }
-
     defCurHP = num('defHP', 0); syncHPBar(); $('defHP').addEventListener('input', resetHP);
 
-    // 1対3 ランク/ヒット & HP初期化
+    // 1対3
     const mAtk=$('mAtkStage'), mHits=$('mHits');
     for(let i=-6;i<=6;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(i===0)o.selected=true; mAtk.appendChild(o); }
     for(let i=1;i<=10;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(i===1)o.selected=true; mHits.appendChild(o); }
@@ -497,4 +507,3 @@ function resetTimer(){ stopTimer(false); const m=clamp(num('timerMin',10),0,999)
     console.error('初期化エラー:', e); alert('初期化に失敗しました：' + e.message);
   }
 })();
-
