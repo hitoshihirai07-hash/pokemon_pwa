@@ -10,7 +10,7 @@
     :root{--brand:#0b74de;--bg:#f6f7fb;--card:#fff;--muted:#666}
     *{box-sizing:border-box}
     body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans JP',sans-serif;margin:0;background:var(--bg);color:#222}
-    header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--brand);color:#fff;position:sticky;top:0;z-index:2}
+    header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--brand);color:#fff;position:sticky;top:0;z-index:10}
     main{padding:16px;max-width:1200px;margin:0 auto}
     .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
     .tab{border:1px solid #cfe0ff;border-radius:999px;background:#e9f1ff;color:#1c4fbf;padding:6px 12px;font-weight:700;cursor:pointer}
@@ -21,6 +21,7 @@
     h2,h3{margin:.2em 0 .6em}
     label{font-size:.95em}
     input[type="number"],input[type="text"],select,textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:10px}
+    textarea{min-height:120px}
     .row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center;margin:8px 0}
     .row3{display:grid;grid-template-columns:120px 1fr 1fr;gap:10px;align-items:center;margin:8px 0}
     .btn{border:0;border-radius:10px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
@@ -60,7 +61,7 @@
   </header>
 
   <main>
-    <!-- タブ切替 -->
+    <!-- タブ -->
     <div class="tabs">
       <button class="tab active" data-tab="calc" type="button">計算</button>
       <button class="tab" data-tab="multi" type="button">1対3</button>
@@ -69,7 +70,7 @@
       <button class="tab" data-tab="timer" type="button">タイマー</button>
     </div>
 
-    <!-- ============ 計算タブ（既存） ============ -->
+    <!-- ============ 計算タブ ============ -->
     <section id="tab-calc">
       <div class="grid grid-2">
         <!-- 攻撃側 -->
@@ -204,10 +205,10 @@
       <div class="card"><h3>ログ</h3><textarea id="log" readonly></textarea></div>
     </section>
 
-    <!-- ============ 1対3タブ（新規：実数値計つき） ============ -->
+    <!-- ============ 1対3タブ ============ -->
     <section id="tab-multi" class="hidden">
       <div class="grid grid-2">
-        <!-- 攻撃側（1人） -->
+        <!-- 攻撃側（共通） -->
         <div class="card">
           <h2>攻撃側（共通）</h2>
           <div class="row3">
@@ -235,7 +236,7 @@
           <div class="row"><label>連続回数</label><select id="mHits"></select></div>
           <div class="row"><label>その他補正</label><input id="mOtherMul" type="number" step="0.05" min="0" value="1.0" /></div>
 
-          <!-- 追加：攻撃側 実数値計 -->
+          <!-- 実数値計（攻撃/特攻） -->
           <details style="margin-top:10px">
             <summary>実数値計（攻撃/特攻）</summary>
             <div class="row3"><label>対象</label>
@@ -268,7 +269,7 @@
 
         <!-- 防御側（3人） -->
         <div class="grid grid-3">
-          <!-- 1人目 -->
+          <!-- 1 -->
           <div class="card">
             <h3>相手1</h3>
             <div class="row"><label>名前</label><input id="d1Name" list="pkmnlist" placeholder="例：サーフゴー" /></div>
@@ -282,7 +283,6 @@
             <div class="row"><label>砂嵐・岩特防1.5</label><select id="d1SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
             <div class="row"><label>雪・氷防御1.5</label><select id="d1SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
 
-            <!-- 追加：実数値計（相手1） -->
             <details style="margin-top:6px">
               <summary>実数値計（HP/防御/特防）</summary>
               <div class="row3"><label>対象</label>
@@ -318,7 +318,7 @@
             <div id="d1Result" class="muted" style="margin-top:6px">—</div>
           </div>
 
-          <!-- 2人目 -->
+          <!-- 2 -->
           <div class="card">
             <h3>相手2</h3>
             <div class="row"><label>名前</label><input id="d2Name" list="pkmnlist" /></div>
@@ -332,7 +332,6 @@
             <div class="row"><label>砂嵐・岩特防1.5</label><select id="d2SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
             <div class="row"><label>雪・氷防御1.5</label><select id="d2SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
 
-            <!-- 追加：実数値計（相手2） -->
             <details style="margin-top:6px">
               <summary>実数値計（HP/防御/特防）</summary>
               <div class="row3"><label>対象</label>
@@ -368,7 +367,7 @@
             <div id="d2Result" class="muted" style="margin-top:6px">—</div>
           </div>
 
-          <!-- 3人目 -->
+          <!-- 3 -->
           <div class="card">
             <h3>相手3</h3>
             <div class="row"><label>名前</label><input id="d3Name" list="pkmnlist" /></div>
@@ -382,7 +381,6 @@
             <div class="row"><label>砂嵐・岩特防1.5</label><select id="d3SandRock"><option value="0">オフ</option><option value="1">オン</option></select></div>
             <div class="row"><label>雪・氷防御1.5</label><select id="d3SnowIce"><option value="0">オフ</option><option value="1">オン</option></select></div>
 
-            <!-- 追加：実数値計（相手3） -->
             <details style="margin-top:6px">
               <summary>実数値計（HP/防御/特防）</summary>
               <div class="row3"><label>対象</label>
@@ -423,7 +421,7 @@
       <div class="card"><h3>ログ（1対3）</h3><textarea id="mLog" readonly></textarea></div>
     </section>
 
-    <!-- ============ 図鑑/パーティ（既存） ============ -->
+    <!-- ============ 図鑑/パーティ ============ -->
     <section id="tab-dex" class="hidden">
       <div class="card">
         <h2>図鑑検索</h2>
@@ -437,36 +435,37 @@
         <datalist id="pkmnlist"></datalist>
         <img id="dexImg" alt="" style="margin-top:6px;max-height:120px;display:none">
         <div id="dexInfo" class="muted" style="margin-top:8px">未選択</div>
-        <!-- 図鑑：種族値を任意の実数値計へ反映 -->
-<div class="tight" style="margin-top:8px">
-  <select id="dexSendTarget">
-    <optgroup label="メイン：攻撃側">
-      <option value="atk-攻撃">→ 攻撃側 実数値計（攻撃）にセット</option>
-      <option value="atk-特攻">→ 攻撃側 実数値計（特攻）にセット</option>
-    </optgroup>
-    <optgroup label="メイン：防御側">
-      <option value="def-HP">→ 防御側 実数値計（HP）にセット</option>
-      <option value="def-防御">→ 防御側 実数値計（防御）にセット</option>
-      <option value="def-特防">→ 防御側 実数値計（特防）にセット</option>
-    </optgroup>
-    <optgroup label="1対3：相手1">
-      <option value="d1-HP">→ 相手1 実数値計（HP）にセット</option>
-      <option value="d1-防御">→ 相手1 実数値計（防御）にセット</option>
-      <option value="d1-特防">→ 相手1 実数値計（特防）にセット</option>
-    </optgroup>
-    <optgroup label="1対3：相手2">
-      <option value="d2-HP">→ 相手2 実数値計（HP）にセット</option>
-      <option value="d2-防御">→ 相手2 実数値計（防御）にセット</option>
-      <option value="d2-特防">→ 相手2 実数値計（特防）にセット</option>
-    </optgroup>
-    <optgroup label="1対3：相手3">
-      <option value="d3-HP">→ 相手3 実数値計（HP）にセット</option>
-      <option value="d3-防御">→ 相手3 実数値計（防御）にセット</option>
-      <option value="d3-特防">→ 相手3 実数値計（特防）にセット</option>
-    </optgroup>
-  </select>
-  <button class="btn" type="button" onclick="applyDexBase()">種族値を適用</button>
-</div>
+
+        <!-- 図鑑：種族値→各実数値計へ -->
+        <div class="tight" style="margin-top:8px">
+          <select id="dexSendTarget">
+            <optgroup label="メイン：攻撃側">
+              <option value="atk-攻撃">→ 攻撃側 実数値計（攻撃）にセット</option>
+              <option value="atk-特攻">→ 攻撃側 実数値計（特攻）にセット</option>
+            </optgroup>
+            <optgroup label="メイン：防御側">
+              <option value="def-HP">→ 防御側 実数値計（HP）にセット</option>
+              <option value="def-防御">→ 防御側 実数値計（防御）にセット</option>
+              <option value="def-特防">→ 防御側 実数値計（特防）にセット</option>
+            </optgroup>
+            <optgroup label="1対3：相手1">
+              <option value="d1-HP">→ 相手1 実数値計（HP）にセット</option>
+              <option value="d1-防御">→ 相手1 実数値計（防御）にセット</option>
+              <option value="d1-特防">→ 相手1 実数値計（特防）にセット</option>
+            </optgroup>
+            <optgroup label="1対3：相手2">
+              <option value="d2-HP">→ 相手2 実数値計（HP）にセット</option>
+              <option value="d2-防御">→ 相手2 実数値計（防御）にセット</option>
+              <option value="d2-特防">→ 相手2 実数値計（特防）にセット</option>
+            </optgroup>
+            <optgroup label="1対3：相手3">
+              <option value="d3-HP">→ 相手3 実数値計（HP）にセット</option>
+              <option value="d3-防御">→ 相手3 実数値計（防御）にセット</option>
+              <option value="d3-特防">→ 相手3 実数値計（特防）にセット</option>
+            </optgroup>
+          </select>
+          <button class="btn" type="button" onclick="applyDexBase()">種族値を適用</button>
+        </div>
 
         <details style="margin-top:10px">
           <summary>実数値計（HP/攻撃/防御/特攻/特防/素早）</summary>
@@ -510,7 +509,7 @@
       </div>
     </section>
 
-    <!-- ============ 対戦メモ（既存） ============ -->
+    <!-- ============ 対戦メモ ============ -->
     <section id="tab-memo" class="hidden">
       <div class="card">
         <h2>対戦メモ</h2>
@@ -547,7 +546,7 @@
       </div>
     </section>
 
-    <!-- ============ タイマー（既存） ============ -->
+    <!-- ============ タイマー ============ -->
     <section id="tab-timer" class="hidden">
       <div class="card">
         <h2>タイマー</h2>
