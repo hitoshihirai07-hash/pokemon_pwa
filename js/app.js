@@ -748,6 +748,24 @@ function buildPartyStorageBar(){
   }catch(_){}
 }
 buildPartyStorageBar();
+/* =========================
+   タイマー
+========================= */
+let timer=null, remainMs=0;
+function updateTimerBadge(){ const b=document.getElementById('badgeTimer'); if(b) b.textContent = `タイマー: ${timer?'動作中':'停止'}`; }
+function fmt(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
+document.getElementById('timerStart')?.addEventListener('click',()=>{
+  const min=val('timerMin',15); remainMs=min*60*1000;
+  set('timerState','動作中'); updateTimerBadge();
+  if(timer) clearInterval(timer);
+  timer=setInterval(()=>{
+    remainMs-=1000; set('timerRemain',fmt(remainMs));
+    if(remainMs<=0){ clearInterval(timer); timer=null; set('timerState','終了'); updateTimerBadge(); alert('タイマー終了'); }
+  },1000);
+});
+document.getElementById('timerStop')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; set('timerState','停止中'); updateTimerBadge(); } });
+document.getElementById('timerReset')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; } set('timerRemain','00:00'); set('timerState','停止中'); updateTimerBadge(); });
+updateTimerBadge();
 
 /* =========================
    計算ログ 保存／読込（LocalStorage + TXT）
@@ -970,24 +988,7 @@ function renderBattleList(){
 }
 buildBattleLogUI();
 
-/* =========================
-   タイマー
-========================= */
-let timer=null, remainMs=0;
-function updateTimerBadge(){ const b=document.getElementById('badgeTimer'); if(b) b.textContent = `タイマー: ${timer?'動作中':'停止'}`; }
-function fmt(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60), r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
-document.getElementById('timerStart')?.addEventListener('click',()=>{
-  const min=val('timerMin',15); remainMs=min*60*1000;
-  set('timerState','動作中'); updateTimerBadge();
-  if(timer) clearInterval(timer);
-  timer=setInterval(()=>{
-    remainMs-=1000; set('timerRemain',fmt(remainMs));
-    if(remainMs<=0){ clearInterval(timer); timer=null; set('timerState','終了'); updateTimerBadge(); alert('タイマー終了'); }
-  },1000);
-});
-document.getElementById('timerStop')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; set('timerState','停止中'); updateTimerBadge(); } });
-document.getElementById('timerReset')?.addEventListener('click',()=>{ if(timer){ clearInterval(timer); timer=null; } set('timerRemain','00:00'); set('timerState','停止中'); updateTimerBadge(); });
-updateTimerBadge();
+
 const bL=document.getElementById('badgeLog'); if(bL) bL.textContent='計算ログ: 0件';
 
 /* =========================
@@ -998,3 +999,4 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(console.error);
   });
 }
+
