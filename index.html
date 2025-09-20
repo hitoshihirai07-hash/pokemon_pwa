@@ -1,21 +1,21 @@
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0b74de">
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ポケモン統合ツール（タブ版・4ファイル構成）</title>
-  <!-- favicon 404防止（必要なら後で置き換えOK） -->
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>ポケモン統合ツール</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b74de">
+  <link rel="stylesheet" href="css/styles.css"/>
 </head>
 <body>
 <header>
   <div class="top">
-    <div>ポケモン統合ツール（タブ版・4ファイル構成）</div>
+    <div>ポケモン統合ツール（ダメ計/実数値/1対3/SR/構築/パーティ/タイマー）</div>
     <div class="flex">
       <span class="pill" id="badgeTeams">構築: 0件</span>
+      <span class="pill" id="badgeDex">図鑑: 未読込</span>
       <span class="pill" id="badgeLog">ログ: 0件</span>
       <span class="pill" id="badgeTimer">タイマー: 停止</span>
     </div>
@@ -34,31 +34,31 @@
 <main>
   <!-- ① ダメージ計算 -->
   <section id="tab-calc">
-    <div class="card"><h2>① ダメージ計算（レベル50固定）</h2>
+    <div class="card"><h2>① ダメージ計算（Lv50固定）</h2>
       <div class="grid grid-2">
         <div>
           <h3>攻撃側（左）</h3>
-          <div class="row"><label>攻撃(Atk/SpA)</label><input id="atkStat" type="number" value="172"></div>
+          <div class="row"><label>攻/特攻</label><input id="atkStat" type="number" value="172"></div>
           <div class="row"><label>STAB</label><select id="stab"><option value="1">1.0</option><option value="1.5" selected>1.5</option><option value="2">2.0</option></select></div>
           <div class="row"><label>攻撃ランク</label><select id="atkRank"></select></div>
           <div class="row"><label>急所</label><select id="crit"><option value="1">なし</option><option value="1.5">あり(1.5)</option></select></div>
         </div>
         <div>
           <h3>防御側（右）</h3>
-          <div class="row"><label>防御(Def/SpD)</label><input id="defStat" type="number" value="120"></div>
+          <div class="row"><label>防/特防</label><input id="defStat" type="number" value="120"></div>
           <div class="row"><label>防御ランク</label><select id="defRank"></select></div>
           <div class="row"><label>HP</label><input id="defHP" type="number" value="155"></div>
           <div class="row"><label>天候</label><select id="weather">
             <option value="none">なし</option>
-            <option value="sun">晴れ(炎1.5/水0.5)</option>
-            <option value="rain">雨(水1.5/炎0.5)</option>
-            <option value="sand">砂嵐(岩SpD1.5 ※特)</option>
-            <option value="snow">雪(氷Def1.5 ※物)</option>
+            <option value="sun">晴れ(炎↑/水↓)</option>
+            <option value="rain">雨(水↑/炎↓)</option>
+            <option value="sand">砂嵐(岩SpD↑※特)</option>
+            <option value="snow">雪(氷Def↑※物)</option>
           </select></div>
           <div class="row small"><label>天候タイプ補正</label>
             <div class="flex">
-              <label><input id="chkRockInSand" type="checkbox"> 砂嵐中・防御側が岩（特殊時SpD×1.5）</label>
-              <label><input id="chkIceInSnow" type="checkbox"> 雪中・防御側が氷（物理時Def×1.5）</label>
+              <label><input id="chkRockInSand" type="checkbox"> 砂嵐×岩（特殊時SpD×1.5）</label>
+              <label><input id="chkIceInSnow" type="checkbox"> 雪×氷（物理時Def×1.5）</label>
             </div>
           </div>
         </div>
@@ -67,12 +67,16 @@
       <div class="grid grid-3">
         <div class="row"><label>技威力</label><input id="power" type="number" value="80"></div>
         <div class="row"><label>タイプ相性</label><select id="typeMul"><option>0.25</option><option>0.5</option><option selected>1.0</option><option>2.0</option><option>4.0</option></select></div>
-        <div class="row"><label>その他補正（持ち物等）</label><input id="extra" type="number" step="0.05" value="1.0"></div>
+        <div class="row"><label>その他補正（持ち物/フィールド等）</label><input id="extra" type="number" step="0.05" value="1.0"></div>
       </div>
-      <div class="row"><label>攻撃方法</label><select id="mode"><option value="phys">物理(攻撃→防御)</option><option value="spec">特殊(特攻→特防)</option></select></div>
+      <div class="row"><label>攻撃方法</label><select id="mode"><option value="phys">物理(攻→防)</option><option value="spec">特殊(特攻→特防)</option></select></div>
       <div class="row"><label>技タイプ（天候判定用）</label><select id="moveType"></select></div>
       <div class="row"><label>連続ヒット</label><select id="hits"></select></div>
-      <div class="flex"><button class="btn" id="btnCalc">計算する</button><button class="btn btn-ghost" id="btnUndo">元に戻す</button><button class="btn btn-ghost" id="btnClearLog">ログをクリア</button></div>
+      <div class="flex">
+        <button class="btn" id="btnCalc">計算する</button>
+        <button class="btn btn-ghost" id="btnUndo">元に戻す</button>
+        <button class="btn btn-ghost" id="btnClearLog">ログをクリア</button>
+      </div>
       <hr>
       <div id="result"></div>
       <div class="row"><label>HPバー</label><div class="bar"><div id="hpbar" style="width:100%"></div></div></div>
@@ -82,7 +86,21 @@
 
   <!-- ② 実数値計算 -->
   <section id="tab-stats" class="hidden">
-    <div class="card"><h2>② 実数値計算（レベル50）</h2>
+    <div class="card">
+      <h2>② 実数値計算（Lv50）</h2>
+      <div class="card">
+        <h3>図鑑検索（攻撃側/防御側に反映）</h3>
+        <div class="grid grid-2">
+          <div class="row"><label>攻撃側 名/番号</label><input id="dexSearchAtk" list="dexList" placeholder="例：25 / ピカチュウ"></div>
+          <div class="row"><label>防御側 名/番号</label><input id="dexSearchDef" list="dexList" placeholder="例：1000 / サーフゴー"></div>
+        </div>
+        <datalist id="dexList"></datalist>
+        <div class="flex">
+          <button class="btn" id="btnDexLoad" type="button">図鑑JSONを読み込む</button>
+          <button class="btn btn-ghost" id="btnDexClear" type="button">図鑑のローカル保存を削除</button>
+          <input id="dexFilePicker" type="file" accept=".json" style="display:none">
+        </div>
+      </div>
       <div class="grid grid-2">
         <div><h3>攻撃側 実数値</h3><div id="stats-atk"></div></div>
         <div><h3>防御側 実数値</h3><div id="stats-def"></div></div>
@@ -109,7 +127,6 @@
         </div>
       </div>
       <div class="grid grid-3">
-        <!-- 相手1 -->
         <div class="card small">
           <h3>相手1</h3>
           <div class="row"><label>防/特防</label><input id="v13_def1" type="number" value="120"></div>
@@ -125,7 +142,6 @@
           </div>
           <div id="v13_out1"></div>
         </div>
-        <!-- 相手2 -->
         <div class="card small">
           <h3>相手2</h3>
           <div class="row"><label>防/特防</label><input id="v13_def2" type="number" value="120"></div>
@@ -141,7 +157,6 @@
           </div>
           <div id="v13_out2"></div>
         </div>
-        <!-- 相手3 -->
         <div class="card small">
           <h3>相手3</h3>
           <div class="row"><label>防/特防</label><input id="v13_def3" type="number" value="120"></div>
@@ -167,22 +182,40 @@
     <div class="card"><h2>④ ステルスロック（簡易）</h2>
       <div class="grid grid-3">
         <div class="row"><label>防御側HP</label><input id="sr_hp" type="number" value="155"></div>
-        <div class="row"><label>タイプ（テラ未考慮）</label><select id="sr_type"></select></div>
+        <div class="row"><label>相性倍率</label><select id="sr_type"></select></div>
         <div class="row"><label>結果</label><input id="sr_result" type="text" readonly></div>
       </div>
       <div class="flex"><button class="btn" id="btnSR">計算</button></div>
-      <div class="muted small">※ 12.5% × 相性（例：4倍→50%）。</div>
+      <div class="muted small">※ 12.5% × 相性（4倍→50%）。</div>
     </div>
   </section>
 
   <!-- ⑤ 構築インポート -->
   <section id="tab-teams" class="hidden">
-    <div class="card"><h2>⑤ 構築データ取り込み（JSON/CSV/TSV 自動対応）</h2>
-      <div class="row"><label>ファイル選択</label><input id="fileInput" type="file" accept=".json,.csv,.tsv,.txt" /></div>
+    <div class="card"><h2>⑤ 構築データ取り込み（JSON/CSV/TSV）</h2>
+      <div class="row"><label>ファイル選択</label><input id="fileInput" type="file" accept=".json,.csv,.tsv,.txt"/></div>
       <div class="row"><label>貼り付け</label><textarea id="pasteBox" placeholder="ここへ貼り付け → 読み込む"></textarea></div>
-      <div class="flex"><button class="btn" id="loadBtn">読み込む</button><button class="btn btn-ghost" id="demoBtn">デモ読み込み</button><button class="btn btn-ghost" id="clearBtn">クリア</button><button class="btn btn-ghost" id="diagBtn">診断</button><span id="loadInfo" class="muted">未読込</span></div>
-      <div class="card hidden" id="diagBox"><h3>診断</h3><div class="row"><label>モード</label><div id="diagMode" class="pill">-</div></div><div class="row"><label>行数/レコード</label><div id="diagCount" class="muted">-</div></div><div class="row"><label>JSONエラー</label><div id="diagErr" class="muted">(なし)</div></div><pre class="diag" id="diagHead"></pre></div>
-      <div class="card"><div class="flex"><h3 style="margin:0">一覧</h3><input id="filterBox" type="text" placeholder="フィルタ（名前/持ち物/テラ/シーズン/順位/レート）" style="max-width:420px" /><span class="muted" id="filterCount">0 / 0</span></div><div id="teamsList" class="team-grid" style="margin-top:10px"></div></div>
+      <div class="flex">
+        <button class="btn" id="loadBtn">読み込む</button>
+        <button class="btn btn-ghost" id="demoBtn">デモ読み込み</button>
+        <button class="btn btn-ghost" id="clearBtn">クリア</button>
+        <button class="btn btn-ghost" id="diagBtn">診断</button>
+        <span id="loadInfo" class="muted">未読込</span>
+      </div>
+      <div class="card hidden" id="diagBox">
+        <h3>診断</h3>
+        <div class="row"><label>モード</label><div id="diagMode" class="pill">-</div></div>
+        <div class="row"><label>行数/レコード</label><div id="diagCount" class="muted">-</div></div>
+        <div class="row"><label>JSONエラー</label><div id="diagErr" class="muted">(なし)</div></div>
+        <pre class="diag" id="diagHead"></pre>
+      </div>
+      <div class="card">
+        <div class="flex"><h3 style="margin:0">一覧</h3>
+          <input id="filterBox" type="text" placeholder="フィルタ（名前/持ち物/テラ/シーズン/順位/レート）" style="max-width:420px"/>
+          <span class="muted" id="filterCount">0 / 0</span>
+        </div>
+        <div id="teamsList" class="team-grid" style="margin-top:10px"></div>
+      </div>
     </div>
   </section>
 
@@ -190,7 +223,10 @@
   <section id="tab-party" class="hidden">
     <div class="card"><h2>⑥ パーティ（構築から反映可）</h2>
       <div class="party-grid" id="partyGrid"></div>
-      <div class="flex" style="margin-top:8px"><button class="btn" id="copyPartyJSON">JSONコピー</button><button class="btn btn-ghost" id="clearParty">リセット</button></div>
+      <div class="flex" style="margin-top:8px">
+        <button class="btn" id="copyPartyJSON">JSONコピー</button>
+        <button class="btn btn-ghost" id="clearParty">リセット</button>
+      </div>
       <div class="row"><label>JSON</label><textarea id="partyJSON" readonly></textarea></div>
     </div>
   </section>
@@ -203,14 +239,19 @@
         <div class="row"><label>状態</label><input id="timerState" type="text" value="停止中" readonly></div>
         <div class="row"><label>残り</label><input id="timerRemain" type="text" value="00:00" readonly></div>
       </div>
-      <div class="flex"><button class="btn" id="timerStart">開始</button><button class="btn btn-ghost" id="timerStop">停止</button><button class="btn btn-ghost" id="timerReset">リセット</button></div>
+      <div class="flex">
+        <button class="btn" id="timerStart">開始</button>
+        <button class="btn btn-ghost" id="timerStop">停止</button>
+        <button class="btn btn-ghost" id="timerReset">リセット</button>
+      </div>
     </div>
     <div class="card"><h2>メモ</h2><textarea id="memoBox" placeholder="自由記入"></textarea></div>
     <div class="card"><h2>攻撃ログ</h2><textarea id="memoLog" readonly></textarea></div>
   </section>
 </main>
 
-<!-- 先に parser.js、次に app.js を読み込む -->
+<!-- スクリプト（順序重要） -->
+<script defer src="js/dex.js"></script>
 <script defer src="js/parser.js"></script>
 <script defer src="js/app.js"></script>
 </body>
