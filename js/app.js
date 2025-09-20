@@ -24,9 +24,11 @@ for (const b of tabs){
    共通ユーティリティ
 ========================= */
 function set(id,v){ const el=document.getElementById(id); if(el!=null) el.value=v; }
-function val(id,def){ const el=document.getElementById(id); const n=Number(el?.value); return Number.isFinite(n)?n:def; }
+function val(id,def){ const el=document.getElementById(id); if(!el) return def; const n=Number(el.value); return Number.isFinite(n)?n:def; }
+function text(id,v){ const el=document.getElementById(id); if(el!=null) el.textContent=v; }
 function pct(x,tot){ return tot? (x/tot*100).toFixed(1):'0.0'; }
 function ceilDiv(a,b){ return Math.floor((a+b-1)/(b||1)); }
+function evQuickSet(inputId, v){ const el=document.getElementById(inputId); if(!el) return; el.value=v; el.dispatchEvent(new Event('input')); }
 
 /* =========================
    ランク倍率（キーは文字列）
@@ -70,28 +72,18 @@ fillMoveType('moveType'); fillMoveType('v13_moveType');
 /* =========================
    図鑑ローダ（pokemon_master.json）
 ========================= */
-const PM = {
-  list: [],
-  byName: new Map(),
-  ready: false
-};
+const PM = { list: [], byName: new Map(), ready: false };
 async function loadPokemonMaster() {
   if (PM.ready) return;
   const tryPaths = ['./data/pokemon_master.json','./pokemon_master.json','/data/pokemon_master.json','/pokemon_master.json'];
   let data=null;
   for (const u of tryPaths) {
-    try {
-      const res = await fetch(u, {cache:'no-store'});
-      if(res.ok){ data = await res.json(); break; }
-    } catch(_) {}
+    try { const res = await fetch(u, {cache:'no-store'}); if(res.ok){ data = await res.json(); break; } } catch(_) {}
   }
   if (!data || !Array.isArray(data)) return;
-  PM.list = data;
-  PM.byName.clear();
+  PM.list = data; PM.byName.clear();
   data.forEach(p=>{ if(p && typeof p['名前']==='string') PM.byName.set(p['名前'], p); });
-  PM.ready = true;
-  rebuildDexList();
-  document.dispatchEvent(new Event('dex-ready'));
+  PM.ready = true; rebuildDexList(); document.dispatchEvent(new Event('dex-ready'));
 }
 function findMonByName(name){
   if(!name) return null;
@@ -103,16 +95,12 @@ function rebuildDexList() {
   const dl = document.getElementById('dexList'); if (!dl) return;
   dl.innerHTML = '';
   const src = (window.DEX && Array.isArray(window.DEX) ? window.DEX.map(p=>p.名前) : PM.list.map(p=>p.名前)).slice(0, 10000);
-  src.forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    dl.appendChild(opt);
-  });
+  src.forEach(name => { const opt = document.createElement('option'); opt.value = name; dl.appendChild(opt); });
 }
 window.addEventListener('load', loadPokemonMaster);
 
 /* =========================
-   実数値計算 UI
+   実数値計算（メイン atk/def）
 ========================= */
 const STAT_ORDER=['HP','攻撃','防御','特攻','特防','素早'];
 function buildStatsUI(side){
@@ -154,15 +142,14 @@ function setEV(side,k,v){ set(`${side}_ev_${k}`,v); recalcSide(side); }
 ['atk','def'].forEach(s=>{
   STAT_ORDER.forEach(k=>{
     ['base','iv','ev','nat'].forEach(t=>{
-      const id=`${s}_${t}_${k}`;
-      document.addEventListener('input',e=>{ if(e.target && e.target.id===id) recalcSide(s); });
+      const id=`${s}_${t}_${k}`; document.addEventListener('input',e=>{ if(e.target && e.target.id===id) recalcSide(s); });
     });
   });
 });
 recalcSide('atk'); recalcSide('def');
 
 /* =========================
-   図鑑 → 種族値反映
+   図鑑 → 種族値反映（メイン）
 ========================= */
 function getStatFromMon(mon, key){
   if(!mon) return undefined;
@@ -192,7 +179,6 @@ function applyMonToBase(side, mon) {
   }
   recalcSide(side);
 }
-/* 実数値タブ：攻/防 検索欄から反映 */
 document.addEventListener('input', (e) => {
   if (e.target?.id === 'dexSearchAtk') {
     const mon = findMonByName(e.target.value.trim()) || null;
@@ -203,10 +189,7 @@ document.addEventListener('input', (e) => {
   }
 });
 document.getElementById('btnDexLoad')?.addEventListener('click', loadPokemonMaster);
-document.getElementById('btnDexClear')?.addEventListener('click', ()=>{
-  PM.ready=false; PM.list=[]; PM.byName.clear();
-  rebuildDexList();
-});
+document.getElementById('btnDexClear')?.addEventListener('click', ()=>{ PM.ready=false; PM.list=[]; PM.byName.clear(); rebuildDexList(); });
 
 document.getElementById('btnApplyStats')?.addEventListener('click',()=>{
   set('atkStat', val('atk_final_攻撃',172));
@@ -230,8 +213,7 @@ function dmgRange({level=50,power,atk,def,stab=1,typeMul=1,rankAtk=1,rankDef=1,e
   if(weather==='rain'){ if(moveType==='水') weatherMul=1.5; if(moveType==='炎') weatherMul=0.5; }
   if(weather==='sand' && mode==='spec' && rockInSand){ def = Math.floor(def*1.5); }
   if(weather==='snow' && mode==='phys' && iceInSnow){ def = Math.floor(def*1.5); }
-  let defMul=rankDef;
-  if(crit){ defMul=1; }
+  let defMul=rankDef; if(crit){ defMul=1; }
   const base=Math.floor(level*2/5)+2;
   const core=Math.floor(Math.floor(base*power*(atk*rankAtk)/(def*defMul))/50)+2;
   const min=Math.floor(core*stab*typeMul*0.85*weatherMul*extra);
@@ -272,68 +254,154 @@ document.getElementById('btnCalc')?.addEventListener('click',()=>{
 });
 
 /* =========================
-   1対3：検索 → 初期値自動反映
+   1対3：実数値計算 UI を追加（攻撃=自分：攻撃/特攻、相手：HP/防御/特防）
 ========================= */
 (function enhanceV13(){
   const sec = document.getElementById('tab-v13'); if(!sec) return;
 
+  // --- 自分（攻撃側）検索とフォーム ---
   if(!document.getElementById('v13_self_search')){
     const selfCard = document.createElement('div');
     selfCard.className='card small';
     selfCard.innerHTML = `
       <div class="grid grid-3">
         <div class="row"><label>（自分）図鑑検索</label><input id="v13_self_search" list="dexList" placeholder="例：サーフゴー"></div>
-        <div class="row"><label>自動入力ヒント</label><input id="v13_self_hint" value="攻撃/特攻は用途に応じて手動調整" readonly></div>
-        <div class="row"><label>前提</label><input value="Lv50 / IV31 / EV0 / 補正1.0" readonly></div>
-      </div>`;
+        <div class="row"><label>攻撃モード</label>
+          <select id="v13_mode">
+            <option value="phys">物理（攻撃→防御）</option>
+            <option value="spec">特殊（特攻→特防）</option>
+          </select>
+        </div>
+        <div class="row"><label>前提</label><input value="Lv50 / IV既定:31 / EV既定:0 / 補正1.0" readonly></div>
+      </div>
+      <div id="v13_self_form" class="mt8"></div>
+    `;
     sec.querySelector('.card.small')?.insertAdjacentElement('beforebegin', selfCard);
   }
+  buildV13SelfForm(); // 攻撃/特攻のフォーム
 
+  // --- 相手×3：各カード先頭に検索＆フォームを差し込み ---
   [1,2,3].forEach(i=>{
     const outEl=document.getElementById(`v13_out${i}`);
     const holder = outEl?.closest('.card.small');
     if(holder && !document.getElementById(`v13_enemy_search_${i}`)){
-      const row = document.createElement('div');
-      row.className='row';
-      row.innerHTML = `<label>（相手${i}）図鑑検索</label><input id="v13_enemy_search_${i}" list="dexList" placeholder="例：ピカチュウ">`;
-      holder.insertBefore(row, holder.firstChild);
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `
+        <div class="row"><label>（相手${i}）図鑑検索</label><input id="v13_enemy_search_${i}" list="dexList" placeholder="例：ピカチュウ"></div>
+        <div id="v13_foe_form_${i}" class="mt8"></div>
+      `;
+      holder.insertBefore(wrap, holder.firstChild);
+      buildV13FoeForm(i); // HP/防御/特防のフォーム
     }
   });
 
-  function applySelf(mon){
-    if(!mon) return;
-    const baseAtk = getStatFromMon(mon,'攻撃') ?? 50;
-    const atk = calcStat(baseAtk,31,0,50,1,false);
-    set('v13_atk', atk);
-  }
-  function applyEnemy(i, mon){
-    if(!mon) return;
-    const baseHP = getStatFromMon(mon,'HP') ?? 50;
-    const baseDef = getStatFromMon(mon,'防御') ?? 50;
-    const baseSpD = getStatFromMon(mon,'特防') ?? 50;
-    const hp  = calcStat(baseHP,31,0,50,1,true);
-    const def = calcStat(baseDef,31,0,50,1,false);
-    const spd = calcStat(baseSpD,31,0,50,1,false);
-    set(`v13_hp${i}`, hp);
-    set(`v13_def${i}`, def);
-  }
-
+  // 入力イベントで再計算
   document.addEventListener('input', (e)=>{
-    const t=e.target?.id||'';
-    if(t==='v13_self_search'){
-      const mon = findMonByName(e.target.value.trim()) || null;
-      if(mon) applySelf(mon);
-    }else{
-      const m = t.match(/^v13_enemy_search_(\d)$/);
-      if(m){
-        const idx=Number(m[1]);
-        const mon = findMonByName(e.target.value.trim()) || null;
-        if(mon) applyEnemy(idx, mon);
-      }
-    }
+    const id = e.target?.id || '';
+    // 自分側
+    if(id==='v13_self_search'){ const mon = findMonByName(e.target.value.trim()) || null; if(mon) applyV13SelfFromDex(mon); }
+    if(id.startsWith('v13_self_')){ recalcV13Self(); syncV13ModeToStats(); }
+
+    // 相手側
+    const m = id.match(/^v13_enemy_search_(\d)$/);
+    if(m){ const idx=Number(m[1]); const mon = findMonByName(e.target.value.trim()) || null; if(mon) applyV13FoeFromDex(idx, mon); }
+    const m2 = id.match(/^v13_foe(\d)_(base|iv|ev|nat)_(HP|防御|特防)$/);
+    if(m2){ const idx=Number(m2[1]); recalcV13Foe(idx); syncV13ModeToStats(); }
+
+    // モード切替で攻撃/防御の採用値を更新
+    if(id==='v13_mode'){ syncV13ModeToStats(); }
   });
+
+  // 初期同期
+  syncV13ModeToStats();
 })();
 
+// --- 自分フォーム（攻撃/特攻） ---
+function buildV13SelfForm(){
+  const box=document.getElementById('v13_self_form'); if(!box) return;
+  box.innerHTML = `
+    ${['攻撃','特攻'].map(k=>`
+      <div class="row"><label>${k}</label>
+        <div class="flex" style="gap:6px;flex-wrap:wrap">
+          <input type="number" id="v13_self_base_${k}" placeholder="種族値" style="width:90px">
+          <input type="number" id="v13_self_iv_${k}"   placeholder="IV" value="31" min="0" max="31" style="width:80px">
+          <input type="number" id="v13_self_ev_${k}"   placeholder="EV" value="0" min="0" max="252" step="4" style="width:80px">
+          <select id="v13_self_nat_${k}" style="width:90px">
+            <option value="1.1">1.1</option><option value="1.0" selected>1.0</option><option value="0.9">0.9</option>
+          </select>
+          <input type="number" id="v13_self_final_${k}" placeholder="実数値" readonly style="width:110px">
+          <button class="btn btn-ghost small" type="button" onclick="evQuickSet('v13_self_ev_${k}',0)">EV0</button>
+          <button class="btn btn-ghost small" type="button" onclick="evQuickSet('v13_self_ev_${k}',252)">EV252</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+function recalcV13Self(){
+  ['攻撃','特攻'].forEach(k=>{
+    const base=val(`v13_self_base_${k}`,50), iv=val(`v13_self_iv_${k}`,31), ev=val(`v13_self_ev_${k}`,0), nat=val(`v13_self_nat_${k}`,1.0);
+    const final=calcStat(base,iv,ev,50,nat,false); set(`v13_self_final_${k}`,final);
+  });
+}
+function applyV13SelfFromDex(mon){
+  ['攻撃','特攻'].forEach(k=>{
+    const v=getStatFromMon(mon,k) ?? 50; set(`v13_self_base_${k}`,v);
+  });
+  recalcV13Self(); syncV13ModeToStats();
+}
+
+// --- 相手フォーム（HP/防御/特防） ---
+function buildV13FoeForm(i){
+  const box=document.getElementById(`v13_foe_form_${i}`); if(!box) return;
+  box.innerHTML = `
+    ${['HP','防御','特防'].map(k=>`
+      <div class="row"><label>${k}</label>
+        <div class="flex" style="gap:6px;flex-wrap:wrap">
+          <input type="number" id="v13_foe${i}_base_${k}" placeholder="種族値" style="width:90px">
+          <input type="number" id="v13_foe${i}_iv_${k}"   placeholder="IV" value="31" min="0" max="31" style="width:80px">
+          <input type="number" id="v13_foe${i}_ev_${k}"   placeholder="EV" value="0" min="0" max="252" step="4" style="width:80px">
+          <select id="v13_foe${i}_nat_${k}" style="width:90px">
+            <option value="1.1">1.1</option><option value="1.0" selected>1.0</option><option value="0.9">0.9</option>
+          </select>
+          <input type="number" id="v13_foe${i}_final_${k}" placeholder="実数値" readonly style="width:110px">
+          <button class="btn btn-ghost small" type="button" onclick="evQuickSet('v13_foe${i}_ev_${k}',0)">EV0</button>
+          <button class="btn btn-ghost small" type="button" onclick="evQuickSet('v13_foe${i}_ev_${k}',252)">EV252</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+function recalcV13Foe(i){
+  const doOne=(k,isHP)=>{ const base=val(`v13_foe${i}_base_${k}`,50), iv=val(`v13_foe${i}_iv_${k}`,31), ev=val(`v13_foe${i}_ev_${k}`,0), nat=val(`v13_foe${i}_nat_${k}`,1.0); const f=calcStat(base,iv,ev,50,nat,isHP); set(`v13_foe${i}_final_${k}`,f); return f; };
+  const hp = doOne('HP',true);
+  const df = doOne('防御',false);
+  const sd = doOne('特防',false);
+  // 内部の採用値（既存の入出力に合わせる）
+  set(`v13_hp${i}`, hp);
+  const mode=document.getElementById('v13_mode')?.value || 'phys';
+  set(`v13_def${i}`, mode==='phys'? df : sd);
+}
+function applyV13FoeFromDex(i, mon){
+  ['HP','防御','特防'].forEach(k=>{
+    const v=getStatFromMon(mon,k) ?? 50; set(`v13_foe${i}_base_${k}`,v);
+  });
+  recalcV13Foe(i); syncV13ModeToStats();
+}
+
+// モード切替に合わせて、攻撃と各相手の採用ステを更新
+function syncV13ModeToStats(){
+  const mode=document.getElementById('v13_mode')?.value || 'phys';
+  const atkPhys = val('v13_self_final_攻撃',172);
+  const atkSpec = val('v13_self_final_特攻',120);
+  set('v13_atk', mode==='phys'? atkPhys : atkSpec);
+  [1,2,3].forEach(i=>{
+    const df = val(`v13_foe${i}_final_防御`,120);
+    const sd = val(`v13_foe${i}_final_特防`,120);
+    set(`v13_def${i}`, mode==='phys'? df : sd);
+  });
+}
+
+// 1対3ダメージ計算
 function dmgRangeV13(i){
   const atk=val('v13_atk',172), power=val('v13_power',80), stab=+val('v13_stab',1.5);
   const rankAtk=RANK[String(val('v13_atkRank',0))];
@@ -370,14 +438,10 @@ document.getElementById('btnSR')?.addEventListener('click',()=>{
 /* =========================
    構築インポート（簡易）
 ========================= */
-function parseCSV(txt){
-  const rows=txt.split(/\r?\n/).map(r=>r.split(/,|\t/)); return rows.filter(r=>r.some(x=>x && x.trim().length));
-}
+function parseCSV(txt){ const rows=txt.split(/\r?\n/).map(r=>r.split(/,|\t/)); return rows.filter(r=>r.some(x=>x && x.trim().length)); }
 function normalizeTeams(rows){
-  const out=[]; rows.forEach((r)=>{
-    const names=r.slice(0,6).map(x=>({name:(x||'').trim()}));
-    if(names.some(m=>m.name)) out.push({meta:{season:'?',rule:'?',rank:null,rating:null},members:names});
-  }); return out;
+  const out=[]; rows.forEach((r)=>{ const names=r.slice(0,6).map(x=>({name:(x||'').trim()})); if(names.some(m=>m.name)) out.push({meta:{season:'?',rule:'?',rank:null,rating:null},members:names}); });
+  return out;
 }
 function normalizeFromPKDB(json){
   const teams=(json.teams||[]).map(t=>({
@@ -386,12 +450,10 @@ function normalizeFromPKDB(json){
   }));
   return teams;
 }
-
 let ALL_TEAMS=[]; function setTeams(arr){ ALL_TEAMS=Array.isArray(arr)?arr:[]; const b=document.getElementById('badgeTeams'); if(b) b.textContent=`構築: ${ALL_TEAMS.length}件`; renderTeamsList(); }
 const diagBox=document.getElementById('diagBox');
 document.getElementById('diagBtn')?.addEventListener('click',()=>{ diagBox.classList.toggle('hidden'); });
 function setText(id,txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
-
 async function handleLoad(){
   const f=document.getElementById('fileInput').files[0];
   const pasted=document.getElementById('pasteBox').value.trim();
@@ -414,13 +476,7 @@ async function handleLoad(){
   setTeams(teams);
 }
 document.getElementById('loadBtn')?.addEventListener('click',handleLoad);
-document.getElementById('clearBtn')?.addEventListener('click',()=>{
-  const fi=document.getElementById('fileInput'); if(fi) fi.value='';
-  const pb=document.getElementById('pasteBox'); if(pb) pb.value='';
-  const li=document.getElementById('loadInfo'); if(li) li.textContent='未読込';
-  const fb=document.getElementById('filterBox'); if(fb) fb.value='';
-  setTeams([]);
-});
+document.getElementById('clearBtn')?.addEventListener('click',()=>{ const fi=document.getElementById('fileInput'); if(fi) fi.value=''; const pb=document.getElementById('pasteBox'); if(pb) pb.value=''; const li=document.getElementById('loadInfo'); if(li) li.textContent='未読込'; const fb=document.getElementById('filterBox'); if(fb) fb.value=''; setTeams([]); });
 document.getElementById('demoBtn')?.addEventListener('click',()=>{
   const demo={season:33,rule:"シングル",teams:[
     {rank:1,rating_value:2180.889,team:[
@@ -442,7 +498,6 @@ document.getElementById('demoBtn')?.addEventListener('click',()=>{
   ]};
   const t=normalizeFromPKDB(demo); setTeams(t); setText('loadInfo',`デモ読込：${t.length}件`);
 });
-
 function renderTeamsList(){
   const box=document.getElementById('teamsList'); const f=(document.getElementById('filterBox').value||'').trim().toLowerCase(); if(!box) return;
   box.innerHTML='';
@@ -521,25 +576,15 @@ function buildPartyUI(){
       </div>
     `;
     partyGrid.appendChild(c);
-
-    // プリセット
-    document.getElementById(`p${i}Preset1`).onclick=()=>{
-      set(`p${i}EV_Atk`,252); set(`p${i}EV_Spe`,252);
-    };
-    document.getElementById(`p${i}Preset2`).onclick=()=>{
-      set(`p${i}EV_SpA`,252); set(`p${i}EV_Spe`,252);
-    };
-    document.getElementById(`p${i}Preset3`).onclick=()=>{
-      set(`p${i}EV_Atk`,252); set(`p${i}EV_HP`,252);
-    };
+    document.getElementById(`p${i}Preset1`).onclick=()=>{ set(`p${i}EV_Atk`,252); set(`p${i}EV_Spe`,252); };
+    document.getElementById(`p${i}Preset2`).onclick=()=>{ set(`p${i}EV_SpA`,252); set(`p${i}EV_Spe`,252); };
+    document.getElementById(`p${i}Preset3`).onclick=()=>{ set(`p${i}EV_Atk`,252); set(`p${i}EV_HP`,252); };
   }
 }
 buildPartyUI();
-
 function refreshPartyJSON(){
   const ta=document.getElementById('partyJSON'); if(!ta) return;
-  const data={ members: getParty() };
-  ta.value=JSON.stringify(data,null,2);
+  const data={ members: getParty() }; ta.value=JSON.stringify(data,null,2);
 }
 function getParty(){
   const arr=[]; for(let i=1;i<=6;i++){
@@ -548,16 +593,8 @@ function getParty(){
       item:document.getElementById(`p${i}Item`)?.value||'',
       tera:document.getElementById(`p${i}Tera`)?.value||'',
       nature:document.getElementById(`p${i}Nature`)?.value||'neutral',
-      ev:{
-        hp:+val(`p${i}EV_HP`,0), atk:+val(`p${i}EV_Atk`,0), def:+val(`p${i}EV_Def`,0),
-        spa:+val(`p${i}EV_SpA`,0), spd:+val(`p${i}EV_SpD`,0), spe:+val(`p${i}EV_Spe`,0)
-      },
-      moves:[
-        document.getElementById(`p${i}Move1`)?.value||'',
-        document.getElementById(`p${i}Move2`)?.value||'',
-        document.getElementById(`p${i}Move3`)?.value||'',
-        document.getElementById(`p${i}Move4`)?.value||'',
-      ]
+      ev:{ hp:+val(`p${i}EV_HP`,0), atk:+val(`p${i}EV_Atk`,0), def:+val(`p${i}EV_Def`,0), spa:+val(`p${i}EV_SpA`,0), spd:+val(`p${i}EV_SpD`,0), spe:+val(`p${i}EV_Spe`,0) },
+      moves:[ document.getElementById(`p${i}Move1`)?.value||'', document.getElementById(`p${i}Move2`)?.value||'', document.getElementById(`p${i}Move3`)?.value||'', document.getElementById(`p${i}Move4`)?.value||'' ]
     });
   } return arr;
 }
@@ -566,9 +603,7 @@ function applyTeamToParty(team){
   for(let i=1;i<=6;i++){
     const m=mem[i-1]||{name:'',item:'',tera:'',moves:[]};
     set(`p${i}Name`,m.name||''); set(`p${i}Item`,m.item||''); set(`p${i}Tera`,m.tera||'');
-    // moves があれば反映
-    const mv = Array.isArray(m.moves)? m.moves: [];
-    set(`p${i}Move1`, mv[0]||''); set(`p${i}Move2`, mv[1]||''); set(`p${i}Move3`, mv[2]||''); set(`p${i}Move4`, mv[3]||'');
+    const mv = Array.isArray(m.moves)? m.moves: []; set(`p${i}Move1`, mv[0]||''); set(`p${i}Move2`, mv[1]||''); set(`p${i}Move3`, mv[2]||''); set(`p${i}Move4`, mv[3]||'');
     const meta=document.getElementById(`p${i}Meta`); if(meta) meta.textContent=`S${team.meta.season||'?'} ${team.meta.rule||''}`+(team.meta.rank?` / 順位:${team.meta.rank}`:'');
   }
   refreshPartyJSON();
